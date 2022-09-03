@@ -58,13 +58,21 @@ void setup() {
 
 void loop() 
 {
+  unsigned long currentMillis = millis();
+  
   blinkLed();
 
-  printValues();
-  delay(delayTime);
+  if ((currentMillis - previousMillisMainCycle) >= 2000)
+  {
+    printAndUpdateValues();
+    
+    previousMillisMainCycle = currentMillis;
+  }
+  
+  delay(10);
 }
 
-void printValues() 
+void printAndUpdateValues() 
 {
   ArduinoCloud.update();
     
@@ -100,7 +108,7 @@ void blinkLed()
     previousMillis = currentMillis;
   }
   
-  if(ledState == LOW && ((currentMillis - previousMillis) >= 50))
+  if(ledState == LOW && ((currentMillis - previousMillis) >= 25))
   {
     ledState = HIGH;
     digitalWrite(LED_BUILTIN, ledState);

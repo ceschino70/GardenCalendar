@@ -10,6 +10,8 @@ const char DEVICE_KEY[]         = SECRET_DEVICE_KEY;    // Secret device passwor
 float humid_1;
 float temp_1;
 float press_1;
+bool  releCommandOn;
+bool  releFeedbackOn;
 
 void initProperties()
 {
@@ -18,6 +20,8 @@ void initProperties()
   ArduinoCloud.addProperty(humid_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(temp_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(press_1, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(releCommandOn, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(releFeedbackOn, WRITE, ON_CHANGE, NULL);
 }
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);

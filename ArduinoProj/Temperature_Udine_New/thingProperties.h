@@ -21,6 +21,7 @@ float         temp;
 int           humidity;
 unsigned long previousMillis = 0;        // will store last time LED was updated
 int           ledState = LOW;             // ledState used to set the LED
+unsigned long previousMillisMainCycle = 0;
 
 //Temperature sensor
 Adafruit_BME280 bme; // I2C
