@@ -13,6 +13,8 @@ float press_1;
 bool  releCommandOn;
 bool  releFeedbackOn;
 
+void onReleCommandOnChange();
+
 void initProperties()
 {
   ArduinoCloud.setBoardId(DEVICE_LOGIN_NAME);
@@ -20,8 +22,8 @@ void initProperties()
   ArduinoCloud.addProperty(humid_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(temp_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(press_1, READ, ON_CHANGE, NULL);
-  ArduinoCloud.addProperty(releCommandOn, READ, ON_CHANGE, NULL);
-  ArduinoCloud.addProperty(releFeedbackOn, WRITE, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(releCommandOn, READWRITE, ON_CHANGE, onReleCommandOnChange);
+  ArduinoCloud.addProperty(releFeedbackOn, READ, ON_CHANGE, NULL);
 }
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);

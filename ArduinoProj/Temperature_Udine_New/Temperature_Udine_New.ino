@@ -54,6 +54,7 @@ void setup() {
   
   // Init GPIOs
   pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
+  pinMode(GPIO_RELE, OUTPUT);
 }
 
 void loop() 
@@ -62,14 +63,31 @@ void loop()
   
   blinkLed();
 
-  if ((currentMillis - previousMillisMainCycle) >= 2000)
+  if ((currentMillis - previousMillisMainCycle) >= TEMPERATURE_ACQ_TIMER)
   {
     printAndUpdateValues();
     
     previousMillisMainCycle = currentMillis;
   }
+
+  if ((releStausOn_Old != releStausOn) &&
+      (currentMillis - previousMillisRelecheck) >= RELE_CEACK_TIMER)
+  {
+    releChangeEnable = true;
+  }
+
+  if (releStausOn_Old == 0 && releStausOn == 1)
+  {
+    ciclyReleOn += 1;
+  }
   
-  delay(10);
+  releStausOn_Old = releStausOn;
+  
+  releFeedbackOn = releStausOn;
+  
+  //Serial.println("-----------> releStausOn = " + (String)releStausOn);
+  
+  delay(MAIN_INTERVAL);
 }
 
 void printAndUpdateValues() 
@@ -77,7 +95,7 @@ void printAndUpdateValues()
   ArduinoCloud.update();
     
   temp_1 = bme.readTemperature();
-  String tempString = "Temper. = " + (String)temp_1 + " *C";
+  String tempString = "Tempe. = " + (String)temp_1 + " *C";
   Serial.println(tempString);
   
   press_1 = bme.readPressure() / 100.0F;
@@ -92,9 +110,12 @@ void printAndUpdateValues()
   String humidityString = "Humid. = " +  (String)humid_1 + " %";
   Serial.println(humidityString);
   
+  String str = "ciclyReleOn = " + (String)ciclyReleOn;
+  Serial.println(str);
+  
   Serial.println();
   
-  String text__[NUMBER_OF_RAWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"","",""};
+  String text__[NUMBER_OF_RAWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"","",str};
   displayText(text__);
 }
 
@@ -108,10 +129,24 @@ void blinkLed()
     previousMillis = currentMillis;
   }
   
-  if(ledState == LOW && ((currentMillis - previousMillis) >= 25))
+  if(ledState == LOW && ((currentMillis - previousMillis) >= 10))
   {
     ledState = HIGH;
     digitalWrite(LED_BUILTIN, ledState);
     previousMillis = currentMillis;
   }
+}
+
+void onReleCommandOnChange()  
+{
+  if (releChangeEnable == true && onReleCommandOnChangeCounter <= 0)
+  {    
+    releChangeEnable = false;
+    releStausOn =! releStausOn;
+    
+    digitalWrite(GPIO_RELE, releStausOn);
+    
+    Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
+  }
+  onReleCommandOnChangeCounter = onReleCommandOnChangeCounter - 1;
 }
