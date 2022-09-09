@@ -10,7 +10,7 @@ const int CHIP_SELECT = 4;
 unsigned long previousSecondMainCycle = 0;
 
 int sensorPin = A0;
-int sensorValue = 0;
+double sensorValue = 0;
 
 //Methods
 String datetimeToString (DateTime datetimeValue)

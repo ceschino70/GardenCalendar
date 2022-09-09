@@ -34,7 +34,7 @@ void loop()
 {
   
   // read the value from the sensor:
-  sensorValue = analogRead(sensorPin);
+  sensorValue = analogRead(sensorPin) * (5.0 / 1023.0);
   //Serial.println(sensorValue);
   
   DateTime now = myRTC.now();
