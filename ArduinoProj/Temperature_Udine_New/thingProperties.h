@@ -26,20 +26,18 @@ const int RELE_ON_TIMER         = 10000;  // Relè On timer
 
 float         temp;
 int           humidity;
-unsigned long previousMillis = 0;         // will store last time LED was updated
-int           ledState = LOW;             // ledState used to set the LED
-bool          releStausOn = false;        // Status of output (false = relè OFF, true = relè ON)
-bool          releStausOn_Old = false;    // OLD Status of output (false = relè OFF, true = relè ON)
-bool          releChangeEnable = true;    // The onReleCommandOnChange can chenge the relè output
+unsigned long previousMillis = 0;               // will store last time LED was updated
+int           ledState = LOW;                   // ledState used to set the LED
+bool          releChangeEnable = true;          // The onReleCommandOnChange can chenge the relè output
 int           onReleCommandOnChangeCounter = 1; // When the board connects to IoT cloud generate onReleCommandOnChange event
-int           ciclyReleOn = 0;
 bool          releCommandOnPrevious = false;
 bool          releFeedbackOnPrevious = false;
+unsigned int  millisecOfReleOn = 0;              // Number of seconds of relè in ON state
+unsigned int  deltaTimeFromLastExecution = 0;
 
 unsigned long previousMillisMainCycle = 0;
-unsigned long previousMillisRelecheck = 0;
-unsigned long previousMilliscomandEnable = 0;
 unsigned long previousMilliscomandReleOn = 0;
+unsigned long previousMillisLasExecutionProg = 0;
 
 
 //Temperature sensor
@@ -50,7 +48,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 void displayInit ()
 {
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) 
+  {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }

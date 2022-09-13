@@ -45,7 +45,8 @@ void setup() {
   // default settings
   // (you can also pass in a Wire library object like &Wire2)
   status = bme.begin(SENSOR_TEMP_ADDRESS);
-  if (!status) {
+  if (!status) 
+  {
     Serial.println("Could not find a valid BME280 sensor, check wiring!");
     while (1);
   }
@@ -58,6 +59,9 @@ void setup() {
   // Set the switch on arduino cloud to OFF
   releCommandOn = false;
   
+  // Set counter to 0
+  millisecOfReleOn = 0;
+  
   // ------------------------ Init GPIOs -------------------------------
   pinMode(LED_BUILTIN, OUTPUT);       // Initialize the LED_BUILTIN pin as an output
   pinMode(GPIO_RELE, OUTPUT);         // Initialize relè output
@@ -67,6 +71,9 @@ void setup() {
 void loop() 
 {
   currentMillis = millis();
+
+  deltaTimeFromLastExecution = currentMillis - previousMillisLasExecutionProg;
+  previousMillisLasExecutionProg = currentMillis;
   
   blinkLed();
 
@@ -74,32 +81,16 @@ void loop()
   {
     printAndUpdateValues();
     
-    previousMillisMainCycle = currentMillis;
-
-    unsigned long deltaT = (currentMillis - previousMilliscomandEnable);
-    //Serial.println("-----------> deltaT = " + (String)deltaT);
-    if (deltaT >= ENABLE_COMMAND_TIMER && enable == true)
-    {
-      //Serial.println("-----------> deltaT >= ENABLE_COMMAND_TIMER");
-      enable = false;
-    }
+    previousMillisMainCycle = currentMillis; 
   }
-
-  if ((releStausOn_Old != releStausOn) &&
-      (currentMillis - previousMillisRelecheck) >= RELE_CEACK_TIMER)
-  {
-    releChangeEnable = true;
-  }
-
-  cyclesNumber = ciclyReleOn;
-  releStausOn_Old = releStausOn;
-  releFeedbackOn = releStausOn;
 
   checkReleCommandOn();
   
   checkFeedbackRele();
 
+  
   delay(MAIN_INTERVAL);
+
 }
 
 void checkReleCommandOn()
@@ -110,7 +101,7 @@ void checkReleCommandOn()
     digitalWrite(GPIO_RELE, true);                                    // Set relè ON
     previousMilliscomandReleOn = currentMillis;                       // Reset timer
     
-    Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
+    Serial.println("-----------> Button pressed releStausOn = " + (String)releFeedbackOn);
   }
 
   if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER)  // Check if the timer if expired
@@ -129,11 +120,21 @@ void checkFeedbackRele()
   // Increase the cycle only when the relè is really on
   if (releFeedbackOn == true && releFeedbackOnPrevious == false)
   {
-    ciclyReleOn += 1; // Increase the relè cycle counter
+    cyclesNumber += 1; // Increase the relè cycle counter
   }
+
+  if(releFeedbackOn == true)
+  {
+    millisecOfReleOn += deltaTimeFromLastExecution; 
+  }
+  else
+  {
+    releActivationTime = millisecOfReleOn/1000;
+  }
+
   releFeedbackOnPrevious = releFeedbackOn;
   
-  Serial.println("-----------> releFeedbackOn = " + (String)releFeedbackOn);
+  //Serial.println("-----------> releActivationTime = " + (String)millisecOfReleOn);
 }
 
 void printAndUpdateValues() 
@@ -156,7 +157,7 @@ void printAndUpdateValues()
   String humidityString = "Humid. = " +  (String)humid_1 + " %";
   Serial.println(humidityString);
   
-  String str = "ciclyReleOn = " + (String)ciclyReleOn;
+  String str = "ciclyReleOn = " + (String)cyclesNumber;
   Serial.println(str);
   
   Serial.println();
@@ -185,25 +186,5 @@ void blinkLed()
 
 void onReleCommandOnChange()  
 {
-  /*
-  if (releChangeEnable == true && onReleCommandOnChangeCounter <= 0)
-  {    
-    releChangeEnable = false;
-    releStausOn =! releStausOn;
-    
-    digitalWrite(GPIO_RELE, releStausOn);
-    
-    Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
-  }
-  onReleCommandOnChangeCounter = 0;
-  */
-  Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
-}
-
-void onComandEnableChange()  
-{
-  previousMilliscomandEnable = currentMillis;
-  Serial.println("-----------> previousMilliscomandEnable = " + (String)previousMilliscomandEnable);
-  
-  enable = true;
+  Serial.println("-----------> Button pressed releStausOn = " + (String)releFeedbackOn);
 }
