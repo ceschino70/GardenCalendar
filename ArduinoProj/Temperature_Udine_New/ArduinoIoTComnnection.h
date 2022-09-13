@@ -12,8 +12,11 @@ float temp_1;
 float press_1;
 bool  releCommandOn;
 bool  releFeedbackOn;
+int   cyclesNumber;
+bool  comandEnable;
 
 void onReleCommandOnChange();
+void onComandEnableChange();
 
 void initProperties()
 {
@@ -23,7 +26,9 @@ void initProperties()
   ArduinoCloud.addProperty(temp_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(press_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(releCommandOn, READWRITE, ON_CHANGE, onReleCommandOnChange);
+  ArduinoCloud.addProperty(comandEnable, READWRITE, ON_CHANGE, onComandEnableChange);
   ArduinoCloud.addProperty(releFeedbackOn, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(cyclesNumber, READ, ON_CHANGE, NULL);
 }
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);

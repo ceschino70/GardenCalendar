@@ -3,6 +3,9 @@
 #include "ArduinoIoTComnnection.h"
 
 unsigned long delayTime;
+unsigned long currentMillis;
+
+bool enable = false;
 
 void setup() {
   // Initialize serial and wait for port to open:
@@ -16,7 +19,7 @@ void setup() {
   //Init of LCD display
   displayInit();
   
-  String text_[NUMBER_OF_RAWS_DISPLAIED] = {"Initializing...", "", "", "", ""};
+  String text_[NUMBER_OF_ROWS_DISPLAIED] = {"Initializing...", "", "", "", ""};
   displayText(text_);
 
   Serial.println("-- Display Init OK --");
@@ -51,15 +54,19 @@ void setup() {
   delayTime = 2000;
 
   Serial.println();
+
+  // Set the switch on arduino cloud to OFF
+  releCommandOn = false;
   
-  // Init GPIOs
-  pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
-  pinMode(GPIO_RELE, OUTPUT);
+  // ------------------------ Init GPIOs -------------------------------
+  pinMode(LED_BUILTIN, OUTPUT);       // Initialize the LED_BUILTIN pin as an output
+  pinMode(GPIO_RELE, OUTPUT);         // Initialize relè output
+  pinMode(GPIO_RELE_FEEDBACK, INPUT); // Initialize relè feedback
 }
 
 void loop() 
 {
-  unsigned long currentMillis = millis();
+  currentMillis = millis();
   
   blinkLed();
 
@@ -68,6 +75,14 @@ void loop()
     printAndUpdateValues();
     
     previousMillisMainCycle = currentMillis;
+
+    unsigned long deltaT = (currentMillis - previousMilliscomandEnable);
+    //Serial.println("-----------> deltaT = " + (String)deltaT);
+    if (deltaT >= ENABLE_COMMAND_TIMER && enable == true)
+    {
+      //Serial.println("-----------> deltaT >= ENABLE_COMMAND_TIMER");
+      enable = false;
+    }
   }
 
   if ((releStausOn_Old != releStausOn) &&
@@ -76,18 +91,49 @@ void loop()
     releChangeEnable = true;
   }
 
-  if (releStausOn_Old == 0 && releStausOn == 1)
+  cyclesNumber = ciclyReleOn;
+  releStausOn_Old = releStausOn;
+  releFeedbackOn = releStausOn;
+
+  checkReleCommandOn();
+  
+  checkFeedbackRele();
+
+  delay(MAIN_INTERVAL);
+}
+
+void checkReleCommandOn()
+{
+  if (releCommandOn == true && releCommandOn != releCommandOnPrevious)
   {
-    ciclyReleOn += 1;
+    
+    digitalWrite(GPIO_RELE, true);                                    // Set relè ON
+    previousMilliscomandReleOn = currentMillis;                       // Reset timer
+    
+    Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
+  }
+
+  if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER)  // Check if the timer if expired
+  {
+    digitalWrite(GPIO_RELE, false);                                   // Set relè OFF
+    releCommandOn = false;                                            // Set the switch on arduino cloud to OFF
   }
   
-  releStausOn_Old = releStausOn;
+  releCommandOnPrevious = releCommandOn;
+}
+
+void checkFeedbackRele()
+{
+  releFeedbackOn = digitalRead(GPIO_RELE_FEEDBACK);
+
+  // Increase the cycle only when the relè is really on
+  if (releFeedbackOn == true && releFeedbackOnPrevious == false)
+  {
+    ciclyReleOn += 1; // Increase the relè cycle counter
+  }
+  releFeedbackOnPrevious = releFeedbackOn;
   
-  releFeedbackOn = releStausOn;
-  
-  //Serial.println("-----------> releStausOn = " + (String)releStausOn);
-  
-  delay(MAIN_INTERVAL);
+  Serial.println("-----------> releFeedbackOn = " + (String)releFeedbackOn);
 }
 
 void printAndUpdateValues() 
@@ -115,7 +161,7 @@ void printAndUpdateValues()
   
   Serial.println();
   
-  String text__[NUMBER_OF_RAWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"","",str};
+  String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"","",str};
   displayText(text__);
 }
 
@@ -139,6 +185,7 @@ void blinkLed()
 
 void onReleCommandOnChange()  
 {
+  /*
   if (releChangeEnable == true && onReleCommandOnChangeCounter <= 0)
   {    
     releChangeEnable = false;
@@ -148,5 +195,15 @@ void onReleCommandOnChange()
     
     Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
   }
-  onReleCommandOnChangeCounter = onReleCommandOnChangeCounter - 1;
+  onReleCommandOnChangeCounter = 0;
+  */
+  Serial.println("-----------> Button pressed releStausOn = " + (String)releStausOn);
+}
+
+void onComandEnableChange()  
+{
+  previousMilliscomandEnable = currentMillis;
+  Serial.println("-----------> previousMilliscomandEnable = " + (String)previousMilliscomandEnable);
+  
+  enable = true;
 }
