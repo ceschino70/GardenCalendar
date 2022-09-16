@@ -28,6 +28,8 @@ void setup()
   int ii = ((MAIN_CYCLE_TIMER *1000)/MILLISEC_BASE_CYCLE);
   
   Serial.println("---> Number of base cycle " + (String)ii);
+
+  arrayIndexSaved = 0;
 }
 
 void loop() 
@@ -38,27 +40,46 @@ void loop()
   //Serial.println(sensorValue);
   
   DateTime now = myRTC.now();
+
+  _sensorValues[arrayIndexSaved] = sensorValue;
+  
+  if(arrayIndexSaved < ARRAY_DIMENSION)
+  {
+    ++arrayIndexSaved;
+  }
   
   unsigned long currentsecond = now.unixtime();
   if ((currentsecond - previousSecondMainCycle) >= MAIN_CYCLE_TIMER)
   {
+    Serial.println("---> arrayIndexSaved = " + (String)arrayIndexSaved);
+    String str1 = convertArrayToString(_sensorValues, arrayIndexSaved -1);
+    
+    //Serial.println("---> Val = " + str1);
     previousSecondMainCycle = currentsecond;
     
-    String str = datetimeToString(now)+ " " + (String)sensorValue;
-    Serial.println(str);
-    Serial.println("Main cycle started!");
+    String str = datetimeToString(now);
+    Serial.println(str + str1);
+    //Serial.println("Main cycle started!");
 
     File dataFile = SD.open("datalog.txt", FILE_WRITE);
 
     if (dataFile) 
     {
-      dataFile.println(str);
+      dataFile.println(str + " ");
+      for (int i = 0; i < arrayIndexSaved; i++)
+      {
+        dataFile.println((String)_sensorValues[i]);
+      }
+      
+      //dataFile.println(str);
       dataFile.close();
     }
     else 
     {
       Serial.println("error opening datalog.txt");
     }
+    arrayIndexSaved = 0;
   }
+  
   delay(MILLISEC_BASE_CYCLE);
 }
