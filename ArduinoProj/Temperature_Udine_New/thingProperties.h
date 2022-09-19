@@ -34,6 +34,7 @@ bool          releCommandOnPrevious = false;
 bool          releFeedbackOnPrevious = false;
 unsigned int  millisecOfReleOn = 0;              // Number of seconds of relè in ON state
 unsigned int  deltaTimeFromLastExecution = 0;
+int           disconnectionNumber;
 
 unsigned long previousMillisMainCycle = 0;
 unsigned long previousMilliscomandReleOn = 0;

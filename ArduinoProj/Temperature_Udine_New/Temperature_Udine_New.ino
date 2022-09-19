@@ -37,7 +37,7 @@ void setup() {
      The default is 0 (only errors).
      Maximum is 4
  */
-  setDebugMessageLevel(3);
+  setDebugMessageLevel(4);
   ArduinoCloud.printDebugInfo();
 
   bool status;
@@ -97,8 +97,8 @@ void checkReleCommandOn()
 {
   if (releCommandOn == true && releCommandOn != releCommandOnPrevious)
   {
-    
-    digitalWrite(GPIO_RELE, true);                                    // Set relè ON
+    // ----- TEST CONNECTION -----------
+    //digitalWrite(GPIO_RELE, true);                                    // Set relè ON
     previousMilliscomandReleOn = currentMillis;                       // Reset timer
     
     Serial.println("-----------> Button pressed releStausOn = " + (String)releFeedbackOn);
@@ -106,7 +106,8 @@ void checkReleCommandOn()
 
   if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER)  // Check if the timer if expired
   {
-    digitalWrite(GPIO_RELE, false);                                   // Set relè OFF
+    // ----- TEST CONNECTION -----------
+    //digitalWrite(GPIO_RELE, false);                                   // Set relè OFF
     releCommandOn = false;                                            // Set the switch on arduino cloud to OFF
   }
   
@@ -133,12 +134,25 @@ void checkFeedbackRele()
   }
 
   releFeedbackOnPrevious = releFeedbackOn;
-  
-  //Serial.println("-----------> releActivationTime = " + (String)millisecOfReleOn);
 }
 
 void printAndUpdateValues() 
 {
+  String connectionString;
+  
+  if (ArduinoCloud.connected() == 0)
+  {
+    Serial.println("ArduinoCloud.connected() = 0");
+    connectionString = "Connection: LOST";
+    ++disconnectionNumber;
+    digitalWrite(GPIO_RELE, true);
+  }
+  else
+  {
+    digitalWrite(GPIO_RELE, false);
+    connectionString = "Connection: OK";
+  }
+  
   ArduinoCloud.update();
     
   temp_1 = bme.readTemperature();
@@ -157,12 +171,12 @@ void printAndUpdateValues()
   String humidityString = "Humid. = " +  (String)humid_1 + " %";
   Serial.println(humidityString);
   
-  String str = "ciclyReleOn = " + (String)cyclesNumber;
+  String str = "discNumber: " + (String)disconnectionNumber;
   Serial.println(str);
   
   Serial.println();
   
-  String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"","",str};
+  String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"",connectionString,str};
   displayText(text__);
 }
 

@@ -3,7 +3,7 @@ RTClib myRTC;
 
 // Constants
 const int MAIN_CYCLE_TIMER = 1; // Second of main cycle
-const int MILLISEC_BASE_CYCLE = 100;
+const int MILLISEC_BASE_CYCLE = 500;
 const int CHIP_SELECT = 4;
 const int ARRAY_DIMENSION = 50;
 
