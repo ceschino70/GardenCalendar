@@ -163,8 +163,6 @@ void printAndUpdateValues()
     
     counterESPReset = 0;
   }
-  
-  //messageText = "counterESPReset = " + (String)counterESPReset;
     
   temp_1 = bme.readTemperature();
   String tempString = "Tempe. = " + (String)temp_1 + " *C";
@@ -216,7 +214,6 @@ void blinkLed()
 void onReleCommandOnChange()  
 {
   String txt = "Button pressed releStausOn = " + (String)releFeedbackOn;
-  Serial.println("-----------> " + txt);
   displayMessageSerialAndCloud_singleLine(txt, &messageText, true);
 }
 
@@ -228,7 +225,7 @@ void temperatureAllarms(double temperature)
     temperatureSentMax = true;
     displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
   }
-  else if (temperature < 22.93)
+  else if (temperature < 22.7)
   { 
     temperatureSentMax = false;
   }

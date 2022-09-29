@@ -54,24 +54,25 @@ void loop()
     Serial.println("---> arrayIndexSaved = " + (String)arrayIndexSaved);
     String str1 = convertArrayToString(_sensorValues, arrayIndexSaved -1);
     
-    //Serial.println("---> Val = " + str1);
     previousSecondMainCycle = currentsecond;
     
     String str = datetimeToString(now);
-    Serial.println(str + str1);
+    Serial.println(str + " " + str1);
     //Serial.println("Main cycle started!");
 
     File dataFile = SD.open("datalog.txt", FILE_WRITE);
 
     if (dataFile) 
     {
-      dataFile.println(str + " ");
+      dataFile.print(str);
+      
       for (int i = 0; i < arrayIndexSaved; i++)
-      {
+      { 
+        dataFile.print(";");
         dataFile.println((String)_sensorValues[i]);
+        //dataFile.println(";");
       }
       
-      //dataFile.println(str);
       dataFile.close();
     }
     else 
