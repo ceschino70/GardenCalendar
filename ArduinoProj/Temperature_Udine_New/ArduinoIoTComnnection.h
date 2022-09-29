@@ -15,6 +15,7 @@ bool  releFeedbackOn;
 int   cyclesNumber;
 bool  comandEnable;
 CloudTime releActivationTime;
+String messageText;
 
 void onReleCommandOnChange();
 
@@ -30,6 +31,7 @@ void initProperties()
   ArduinoCloud.addProperty(releFeedbackOn, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(cyclesNumber, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(releActivationTime, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(messageText, READ, ON_CHANGE, NULL);
 }
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);

@@ -2,10 +2,11 @@
 #include "thingProperties.h"
 #include "ArduinoIoTComnnection.h"
 
-unsigned long delayTime;
 unsigned long currentMillis;
 
 bool enable = false;
+bool temperatureSentMax = false;
+bool temperatureSentMin = false;
 
 void setup() {
   // Initialize serial and wait for port to open:
@@ -52,7 +53,6 @@ void setup() {
   }
 
   Serial.println("-- Sensor communication Init OK --");
-  delayTime = 2000;
 
   Serial.println();
 
@@ -98,7 +98,7 @@ void checkReleCommandOn()
   if (releCommandOn == true && releCommandOn != releCommandOnPrevious)
   {
     // ----- TEST CONNECTION -----------
-    //digitalWrite(GPIO_RELE, true);                                    // Set relè ON
+    //digitalWrite(GPIO_RELE, true);                                  // Set relè ON
     previousMilliscomandReleOn = currentMillis;                       // Reset timer
     
     Serial.println("-----------> Button pressed releStausOn = " + (String)releFeedbackOn);
@@ -107,7 +107,7 @@ void checkReleCommandOn()
   if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER)  // Check if the timer if expired
   {
     // ----- TEST CONNECTION -----------
-    //digitalWrite(GPIO_RELE, false);                                   // Set relè OFF
+    //digitalWrite(GPIO_RELE, false);                                 // Set relè OFF
     releCommandOn = false;                                            // Set the switch on arduino cloud to OFF
   }
   
@@ -142,18 +142,29 @@ void printAndUpdateValues()
   
   if (ArduinoCloud.connected() == 0)
   {
-    Serial.println("ArduinoCloud.connected() = 0");
+    Serial.println("counterESPReset = " + (String)counterESPReset);
     connectionString = "Connection: LOST";
     ++disconnectionNumber;
     digitalWrite(GPIO_RELE, true);
+
+    if(counterESPReset >= RESET_ESP_TIMER)
+    {
+      Serial.println("Restarting!!!");
+      delay(10000);
+      ESP.restart();
+    }
+    
+    counterESPReset += TEMPERATURE_ACQ_TIMER;
   }
   else
   {
     digitalWrite(GPIO_RELE, false);
     connectionString = "Connection: OK";
+    
+    counterESPReset = 0;
   }
   
-  ArduinoCloud.update();
+  //messageText = "counterESPReset = " + (String)counterESPReset;
     
   temp_1 = bme.readTemperature();
   String tempString = "Tempe. = " + (String)temp_1 + " *C";
@@ -173,11 +184,15 @@ void printAndUpdateValues()
   
   String str = "discNumber: " + (String)disconnectionNumber;
   Serial.println(str);
-  
-  Serial.println();
-  
+
+  temperatureAllarms(temp_1);
+
   String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"",connectionString,str};
   displayText(text__);
+
+  Serial.println();
+  
+  ArduinoCloud.update();
 }
 
 void blinkLed()
@@ -200,5 +215,32 @@ void blinkLed()
 
 void onReleCommandOnChange()  
 {
-  Serial.println("-----------> Button pressed releStausOn = " + (String)releFeedbackOn);
+  String txt = "Button pressed releStausOn = " + (String)releFeedbackOn;
+  Serial.println("-----------> " + txt);
+  displayMessageSerialAndCloud_singleLine(txt, &messageText, true);
+}
+
+void temperatureAllarms(double temperature)
+{
+  if (temperature > 23 && temperatureSentMax == false)
+  {
+    String txt = "Tempe. Up= " + (String)temperature + " *C";
+    temperatureSentMax = true;
+    displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
+  }
+  else if (temperature < 22.93)
+  { 
+    temperatureSentMax = false;
+  }
+
+  if (temperature < 21 && temperatureSentMin == false)
+  {
+    String txt = "Tempe. Dw= " + (String)temperature + " *C";
+    temperatureSentMin = true;
+    displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
+  }
+  else if (temperature > 21.3)
+  { 
+    temperatureSentMin = false;
+  }
 }

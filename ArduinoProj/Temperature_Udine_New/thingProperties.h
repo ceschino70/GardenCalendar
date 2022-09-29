@@ -17,12 +17,13 @@
 #define GPIO_RELE_FEEDBACK D7       // Relè feedback connected to GPIO 13
 
 // Definition of constant timers
-const int MAIN_INTERVAL         = 10;     // Main timer
+const int MAIN_INTERVAL         = 100;    // Main timer in millisec
 const int TEMPERATURE_ACQ_TIMER = 2000;   // Timer for read & update BME280 sensor
 const int RELE_CEACK_TIMER      = 2000;   // Filter commamd for relè 
 const int INTERVAL              = 1000;   // Interval at which to blink (milliseconds)
 const int ENABLE_COMMAND_TIMER  = 5000;   // Timer for command enable
 const int RELE_ON_TIMER         = 10000;  // Relè On timer
+const int RESET_ESP_TIMER       = 300000; // Number of millisec to wait before ESP reset when arduino IoT cloud connection is lost
 
 float         temp;
 int           humidity;
@@ -35,6 +36,7 @@ bool          releFeedbackOnPrevious = false;
 unsigned int  millisecOfReleOn = 0;              // Number of seconds of relè in ON state
 unsigned int  deltaTimeFromLastExecution = 0;
 int           disconnectionNumber;
+int           counterESPReset = 0;                // Number of cycle before to ESP reset
 
 unsigned long previousMillisMainCycle = 0;
 unsigned long previousMilliscomandReleOn = 0;
@@ -78,4 +80,24 @@ void displayText (String text[])
     display.println(text[i]);
   }
   display.display();
+}
+
+void displayMessageSerialAndCloud_singleLine(String message, String *messageTextForArduinoCloud, bool enablesendingToArduinoCloud = true, bool debugString = false)
+{
+  String text;
+  if(debugString == true)
+  {
+    text = "----->";
+  }
+
+  text = text + message;
+  Serial.println(text);
+
+  if (enablesendingToArduinoCloud == true)
+    *messageTextForArduinoCloud = text;
+}
+
+void displayMessageSerialAndCloud_singleLine(String message, bool enablesendingToArduinoCloud = true)
+{
+  
 }
