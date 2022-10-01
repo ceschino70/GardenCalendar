@@ -183,7 +183,8 @@ void printAndUpdateValues()
       {
         timeClient.update();
         dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
-        Serial.println("-- Main Module started: " + dataTimeStartedModule);
+        String txt = "-- Main Module started: " + dataTimeStartedModule;
+        displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
         firstTimeNTPUpdate = false;
       }
   }
@@ -238,7 +239,7 @@ void blinkLed()
 void onReleCommandOnChange()  
 {
   String txt = "Button pressed releStausOn = " + (String)releFeedbackOn;
-  displayMessageSerialAndCloud_singleLine(txt, &messageText, true);
+  displayMessageSerialAndCloud_singleLine(txt, &messageText, false, true);
 }
 
 void temperatureAllarms(double temperature)
