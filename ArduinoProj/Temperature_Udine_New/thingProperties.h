@@ -3,6 +3,8 @@
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
 
 // I2C Addresses
 #define SENSOR_TEMP_ADDRESS 0x76
@@ -24,19 +26,21 @@ const int INTERVAL              = 1000;   // Interval at which to blink (millise
 const int ENABLE_COMMAND_TIMER  = 5000;   // Timer for command enable
 const int RELE_ON_TIMER         = 10000;  // Relè On timer
 const int RESET_ESP_TIMER       = 300000; // Number of millisec to wait before ESP reset when arduino IoT cloud connection is lost
+const long UTC_OFFSET_IN_SECONDS = 7200;  // Time zone +2h => 2h * 60min * 60sec = 7200
 
 float         temp;
 int           humidity;
-unsigned long previousMillis = 0;               // will store last time LED was updated
-int           ledState = LOW;                   // ledState used to set the LED
-bool          releChangeEnable = true;          // The onReleCommandOnChange can chenge the relè output
-int           onReleCommandOnChangeCounter = 1; // When the board connects to IoT cloud generate onReleCommandOnChange event
+unsigned long previousMillis = 0;                 // will store last time LED was updated
+int           ledState = LOW;                     // ledState used to set the LED
+bool          releChangeEnable = true;            // The onReleCommandOnChange can chenge the relè output
+int           onReleCommandOnChangeCounter = 1;   // When the board connects to IoT cloud generate onReleCommandOnChange event
 bool          releCommandOnPrevious = false;
 bool          releFeedbackOnPrevious = false;
-unsigned int  millisecOfReleOn = 0;              // Number of seconds of relè in ON state
+unsigned int  millisecOfReleOn = 0;               // Number of seconds of relè in ON state
 unsigned int  deltaTimeFromLastExecution = 0;
 int           disconnectionNumber;
 int           counterESPReset = 0;                // Number of cycle before to ESP reset
+String        dataTimeStartedModule;              // Date and Time when module is started
 
 unsigned long previousMillisMainCycle = 0;
 unsigned long previousMilliscomandReleOn = 0;
@@ -48,6 +52,10 @@ Adafruit_BME280 bme; // I2C
 
 //Display
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Define NTP Client to get time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", UTC_OFFSET_IN_SECONDS);
 
 void displayInit ()
 {

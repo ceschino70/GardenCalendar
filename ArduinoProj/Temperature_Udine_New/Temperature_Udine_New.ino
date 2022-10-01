@@ -8,6 +8,8 @@ bool enable = false;
 bool temperatureSentMax = false;
 bool temperatureSentMin = false;
 
+bool firstTimeNTPUpdate = true;
+
 void setup() {
   // Initialize serial and wait for port to open:
   Serial.begin(9600);
@@ -15,7 +17,11 @@ void setup() {
   delay(1500);
   
   Serial.println("");
-  Serial.println("Serial STARTED!");
+  Serial.println("-- Serial STARTED! --");
+
+  timeClient.begin();
+  delay(1500);
+  Serial.println("-- NTPClient STARTED! --");
 
   //Init of LCD display
   displayInit();
@@ -61,6 +67,17 @@ void setup() {
   
   // Set counter to 0
   millisecOfReleOn = 0;
+
+  // ------------------------ Date Time Update -------------------------
+  timeClient.update();
+  dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
+  Serial.println("-- Module started: " + dataTimeStartedModule);
+  
+  Serial.print(timeClient.getHours());
+  Serial.print(":");
+  Serial.print(timeClient.getMinutes());
+  Serial.print(":");
+  Serial.println(timeClient.getSeconds());
   
   // ------------------------ Init GPIOs -------------------------------
   pinMode(LED_BUILTIN, OUTPUT);       // Initialize the LED_BUILTIN pin as an output
@@ -143,7 +160,7 @@ void printAndUpdateValues()
   if (ArduinoCloud.connected() == 0)
   {
     Serial.println("counterESPReset = " + (String)counterESPReset);
-    connectionString = "Connection: LOST";
+    connectionString = "LOST";
     ++disconnectionNumber;
     digitalWrite(GPIO_RELE, true);
 
@@ -159,9 +176,16 @@ void printAndUpdateValues()
   else
   {
     digitalWrite(GPIO_RELE, false);
-    connectionString = "Connection: OK";
-    
+    connectionString = "OK";
     counterESPReset = 0;
+
+    if (firstTimeNTPUpdate)
+      {
+        timeClient.update();
+        dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
+        Serial.println("-- Main Module started: " + dataTimeStartedModule);
+        firstTimeNTPUpdate = false;
+      }
   }
     
   temp_1 = bme.readTemperature();
@@ -180,12 +204,12 @@ void printAndUpdateValues()
   String humidityString = "Humid. = " +  (String)humid_1 + " %";
   Serial.println(humidityString);
   
-  String str = "discNumber: " + (String)disconnectionNumber;
+  String str = "Disc:" + (String)disconnectionNumber + "; " + (String)connectionString;
   Serial.println(str);
 
   temperatureAllarms(temp_1);
 
-  String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"",connectionString,str};
+  String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"" ,dataTimeStartedModule ,str};
   displayText(text__);
 
   Serial.println();
