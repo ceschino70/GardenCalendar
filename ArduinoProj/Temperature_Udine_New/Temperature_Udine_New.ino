@@ -1,3 +1,4 @@
+#include "Timer.h"
 #include "arduino_secrets.h"
 #include "thingProperties.h"
 #include "ArduinoIoTComnnection.h"
