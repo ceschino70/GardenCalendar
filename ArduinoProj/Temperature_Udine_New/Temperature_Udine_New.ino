@@ -9,6 +9,9 @@ bool enable = false;
 bool temperatureSentMax = false;
 bool temperatureSentMin = false;
 
+void blinkLed();
+Timer timer_BlinkLed = Timer(10, 2000);
+
 bool firstTimeNTPUpdate = true;
 
 void setup() {
@@ -69,6 +72,10 @@ void setup() {
   // Set counter to 0
   millisecOfReleOn = 0;
 
+  // Init Timer
+  timer_BlinkLed.cback(blinkLed);
+  timer_BlinkLed.run();
+
   // ------------------------ Date Time Update -------------------------
   timeClient.update();
   dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
@@ -89,6 +96,8 @@ void setup() {
 void loop() 
 {
   currentMillis = millis();
+
+  timer_BlinkLed.loop();
 
   deltaTimeFromLastExecution = currentMillis - previousMillisLasExecutionProg;
   previousMillisLasExecutionProg = currentMillis;
@@ -221,20 +230,7 @@ void printAndUpdateValues()
 
 void blinkLed()
 {
-  unsigned long currentMillis = millis();
-  if (ledState == HIGH && ((currentMillis - previousMillis) >= 2000)) 
-  {
-    ledState = LOW;
-    digitalWrite(LED_BUILTIN, ledState);
-    previousMillis = currentMillis;
-  }
-  
-  if(ledState == LOW && ((currentMillis - previousMillis) >= 10))
-  {
-    ledState = HIGH;
-    digitalWrite(LED_BUILTIN, ledState);
-    previousMillis = currentMillis;
-  }
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 }
 
 void onReleCommandOnChange()  
