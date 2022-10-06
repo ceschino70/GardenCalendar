@@ -19,7 +19,7 @@
 #define GPIO_RELE_FEEDBACK D7       // Relè feedback connected to GPIO 13
 
 // Definition of constant timers
-const int MAIN_INTERVAL         = 100;    // Main timer in millisec
+const int MAIN_INTERVAL         = 10;    // Main timer in millisec
 const int TEMPERATURE_ACQ_TIMER = 2000;   // Timer for read & update BME280 sensor
 const int RELE_CEACK_TIMER      = 2000;   // Filter commamd for relè 
 const int INTERVAL              = 1000;   // Interval at which to blink (milliseconds)

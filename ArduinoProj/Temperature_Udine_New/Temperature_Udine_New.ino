@@ -10,7 +10,10 @@ bool temperatureSentMax = false;
 bool temperatureSentMin = false;
 
 void blinkLed();
+void printAndUpdateValues();
+
 Timer timer_BlinkLed = Timer(10, 2000);
+Timer timer_UpdateValue = Timer(TEMPERATURE_ACQ_TIMER, TEMPERATURE_ACQ_TIMER);
 
 bool firstTimeNTPUpdate = true;
 
@@ -72,9 +75,12 @@ void setup() {
   // Set counter to 0
   millisecOfReleOn = 0;
 
-  // Init Timer
+  // ------------------------ Init Timers ------------------------------
   timer_BlinkLed.cback(blinkLed);
   timer_BlinkLed.run();
+
+  timer_UpdateValue.cback(printAndUpdateValues);
+  timer_UpdateValue.run();
 
   // ------------------------ Date Time Update -------------------------
   timeClient.update();
@@ -96,31 +102,22 @@ void setup() {
 void loop() 
 {
   currentMillis = millis();
-
-  timer_BlinkLed.loop();
-
   deltaTimeFromLastExecution = currentMillis - previousMillisLasExecutionProg;
   previousMillisLasExecutionProg = currentMillis;
-  
-  blinkLed();
 
-  if ((currentMillis - previousMillisMainCycle) >= TEMPERATURE_ACQ_TIMER)
-  {
-    printAndUpdateValues();
-    
-    previousMillisMainCycle = currentMillis; 
-  }
+  // Update all timers
+  timer_BlinkLed.loop();
+  timer_UpdateValue.loop();
 
-  checkReleCommandOn();
-  
+  // Check relè command requeste from Cloud
+  checkReleRequesteOn();
+  // Check relè feedback from Arduino Input
   checkFeedbackRele();
-
   
-  delay(MAIN_INTERVAL);
-
+  //delay(MAIN_INTERVAL);
 }
 
-void checkReleCommandOn()
+void checkReleRequesteOn()
 {
   if (releCommandOn == true && releCommandOn != releCommandOnPrevious)
   {
