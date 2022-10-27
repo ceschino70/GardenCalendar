@@ -77,9 +77,11 @@ void setup() {
 
   // ------------------------ Init Timers ------------------------------
   timer_BlinkLed.cback(blinkLed);
+  timer_BlinkLed.isRepeating();
   timer_BlinkLed.run();
 
   timer_UpdateValue.cback(printAndUpdateValues);
+  timer_UpdateValue.isRepeating();
   timer_UpdateValue.run();
 
   // ------------------------ Date Time Update -------------------------

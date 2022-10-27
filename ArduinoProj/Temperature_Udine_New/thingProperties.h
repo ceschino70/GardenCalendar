@@ -104,8 +104,3 @@ void displayMessageSerialAndCloud_singleLine(String message, String *messageText
   if (enablesendingToArduinoCloud == true)
     *messageTextForArduinoCloud = text;
 }
-
-void displayMessageSerialAndCloud_singleLine(String message, bool enablesendingToArduinoCloud = true)
-{
-  
-}
