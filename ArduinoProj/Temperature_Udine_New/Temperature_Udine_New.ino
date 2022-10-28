@@ -12,7 +12,7 @@ bool temperatureSentMin = false;
 void blinkLed();
 void printAndUpdateValues();
 
-Timer timer_BlinkLed = Timer(10, 2000);
+Timer timer_BlinkLed = Timer(10, 4000);
 Timer timer_UpdateValue = Timer(TEMPERATURE_ACQ_TIMER, TEMPERATURE_ACQ_TIMER);
 
 bool firstTimeNTPUpdate = true;
@@ -83,10 +83,11 @@ void setup() {
   timer_UpdateValue.cback(printAndUpdateValues);
   timer_UpdateValue.isRepeating();
   timer_UpdateValue.run();
-
   // ------------------------ Date Time Update -------------------------
+  
   timeClient.update();
-  dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
+  dataTimeStartedModule = (String)timeClient.getFormattedTime();
+                          
   Serial.println("-- Module started: " + dataTimeStartedModule);
   
   Serial.print(timeClient.getHours());
@@ -115,8 +116,6 @@ void loop()
   checkReleRequesteOn();
   // Check relè feedback from Arduino Input
   checkFeedbackRele();
-  
-  //delay(MAIN_INTERVAL);
 }
 
 void checkReleRequesteOn()
@@ -176,7 +175,7 @@ void printAndUpdateValues()
     if(counterESPReset >= RESET_ESP_TIMER)
     {
       Serial.println("Restarting!!!");
-      delay(10000);
+      delay(15000);
       ESP.restart();
     }
     
