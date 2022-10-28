@@ -9,6 +9,12 @@ bool enable = false;
 bool temperatureSentMax = false;
 bool temperatureSentMin = false;
 
+void blinkLed();
+void printAndUpdateValues();
+
+Timer timer_BlinkLed = Timer(10, 4000);
+Timer timer_UpdateValue = Timer(TEMPERATURE_ACQ_TIMER, TEMPERATURE_ACQ_TIMER);
+
 bool firstTimeNTPUpdate = true;
 
 void setup() {
@@ -69,9 +75,19 @@ void setup() {
   // Set counter to 0
   millisecOfReleOn = 0;
 
+  // ------------------------ Init Timers ------------------------------
+  timer_BlinkLed.cback(blinkLed);
+  timer_BlinkLed.isRepeating();
+  timer_BlinkLed.run();
+
+  timer_UpdateValue.cback(printAndUpdateValues);
+  timer_UpdateValue.isRepeating();
+  timer_UpdateValue.run();
   // ------------------------ Date Time Update -------------------------
+  
   timeClient.update();
-  dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
+  dataTimeStartedModule = (String)timeClient.getFormattedTime();
+                          
   Serial.println("-- Module started: " + dataTimeStartedModule);
   
   Serial.print(timeClient.getHours());
@@ -89,29 +105,20 @@ void setup() {
 void loop() 
 {
   currentMillis = millis();
-
   deltaTimeFromLastExecution = currentMillis - previousMillisLasExecutionProg;
   previousMillisLasExecutionProg = currentMillis;
-  
-  blinkLed();
 
-  if ((currentMillis - previousMillisMainCycle) >= TEMPERATURE_ACQ_TIMER)
-  {
-    printAndUpdateValues();
-    
-    previousMillisMainCycle = currentMillis; 
-  }
+  // Update all timers
+  timer_BlinkLed.loop();
+  timer_UpdateValue.loop();
 
-  checkReleCommandOn();
-  
+  // Check relè command requeste from Cloud
+  checkReleRequesteOn();
+  // Check relè feedback from Arduino Input
   checkFeedbackRele();
-
-  
-  delay(MAIN_INTERVAL);
-
 }
 
-void checkReleCommandOn()
+void checkReleRequesteOn()
 {
   if (releCommandOn == true && releCommandOn != releCommandOnPrevious)
   {
@@ -168,7 +175,7 @@ void printAndUpdateValues()
     if(counterESPReset >= RESET_ESP_TIMER)
     {
       Serial.println("Restarting!!!");
-      delay(10000);
+      delay(15000);
       ESP.restart();
     }
     
@@ -221,20 +228,7 @@ void printAndUpdateValues()
 
 void blinkLed()
 {
-  unsigned long currentMillis = millis();
-  if (ledState == HIGH && ((currentMillis - previousMillis) >= 2000)) 
-  {
-    ledState = LOW;
-    digitalWrite(LED_BUILTIN, ledState);
-    previousMillis = currentMillis;
-  }
-  
-  if(ledState == LOW && ((currentMillis - previousMillis) >= 10))
-  {
-    ledState = HIGH;
-    digitalWrite(LED_BUILTIN, ledState);
-    previousMillis = currentMillis;
-  }
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 }
 
 void onReleCommandOnChange()  
