@@ -3,11 +3,7 @@
 #include "thingProperties.h"
 #include "ArduinoIoTComnnection.h"
 
-unsigned long currentMillis;
-
 bool enable = false;
-bool temperatureSentMax = false;
-bool temperatureSentMin = false;
 
 void blinkLed();
 void printAndUpdateValues();
@@ -15,9 +11,8 @@ void printAndUpdateValues();
 Timer timer_BlinkLed = Timer(10, 4000);
 Timer timer_UpdateValue = Timer(TEMPERATURE_ACQ_TIMER, TEMPERATURE_ACQ_TIMER);
 
-bool firstTimeNTPUpdate = true;
-
-void setup() {
+void setup() 
+{
   // Initialize serial and wait for port to open:
   Serial.begin(9600);
   // This delay gives the chance to wait for a Serial Monitor without blocking if none is found
@@ -75,12 +70,13 @@ void setup() {
   // Set counter to 0
   millisecOfReleOn = 0;
 
+
   // ------------------------ Init Timers ------------------------------
   timer_BlinkLed.cback(blinkLed);
   timer_BlinkLed.isRepeating();
   timer_BlinkLed.run();
 
-  timer_UpdateValue.cback(printAndUpdateValues);
+  timer_UpdateValue.cback(cycleSlow);
   timer_UpdateValue.isRepeating();
   timer_UpdateValue.run();
   // ------------------------ Date Time Update -------------------------
@@ -113,89 +109,18 @@ void loop()
   timer_UpdateValue.loop();
 
   // Check relè command requeste from Cloud
-  checkReleRequesteOn();
+  releCommandOn = checkReleRequesteOn(releCommandOn);
   // Check relè feedback from Arduino Input
-  checkFeedbackRele();
+  releFeedbackOn = checkFeedbackRele();
+
+  // Update value on cloud
+  cyclesNumber = cyclesNumberOfRele;
+  releActivationTime = releActivationTimeInSec;
 }
 
-void checkReleRequesteOn()
+void cycleSlow() 
 {
-  if (releCommandOn == true && releCommandOn != releCommandOnPrevious)
-  {
-    // ----- TEST CONNECTION -----------
-    //digitalWrite(GPIO_RELE, true);                                  // Set relè ON
-    previousMilliscomandReleOn = currentMillis;                       // Reset timer
-    
-    Serial.println("-----------> Button pressed releStausOn = " + (String)releFeedbackOn);
-  }
-
-  if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER)  // Check if the timer if expired
-  {
-    // ----- TEST CONNECTION -----------
-    //digitalWrite(GPIO_RELE, false);                                 // Set relè OFF
-    releCommandOn = false;                                            // Set the switch on arduino cloud to OFF
-  }
-  
-  releCommandOnPrevious = releCommandOn;
-}
-
-void checkFeedbackRele()
-{
-  releFeedbackOn = digitalRead(GPIO_RELE_FEEDBACK);
-
-  // Increase the cycle only when the relè is really on
-  if (releFeedbackOn == true && releFeedbackOnPrevious == false)
-  {
-    cyclesNumber += 1; // Increase the relè cycle counter
-  }
-
-  if(releFeedbackOn == true)
-  {
-    millisecOfReleOn += deltaTimeFromLastExecution; 
-  }
-  else
-  {
-    releActivationTime = millisecOfReleOn/1000;
-  }
-
-  releFeedbackOnPrevious = releFeedbackOn;
-}
-
-void printAndUpdateValues() 
-{
-  String connectionString;
-  
-  if (ArduinoCloud.connected() == 0)
-  {
-    Serial.println("counterESPReset = " + (String)counterESPReset);
-    connectionString = "LOST";
-    ++disconnectionNumber;
-    digitalWrite(GPIO_RELE, true);
-
-    if(counterESPReset >= RESET_ESP_TIMER)
-    {
-      Serial.println("Restarting!!!");
-      delay(15000);
-      ESP.restart();
-    }
-    
-    counterESPReset += TEMPERATURE_ACQ_TIMER;
-  }
-  else
-  {
-    digitalWrite(GPIO_RELE, false);
-    connectionString = "OK";
-    counterESPReset = 0;
-
-    if (firstTimeNTPUpdate)
-      {
-        timeClient.update();
-        dataTimeStartedModule = (String)timeClient.getHours()+":"+(String)timeClient.getMinutes()+":"+(String)timeClient.getSeconds();
-        String txt = "-- Main Module started: " + dataTimeStartedModule;
-        displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
-        firstTimeNTPUpdate = false;
-      }
-  }
+  String connectionString = checkConnctionAndRestart(ArduinoCloud.connected(), &messageText);
     
   temp_1 = bme.readTemperature();
   String tempString = "Tempe. = " + (String)temp_1 + " *C";
@@ -216,7 +141,7 @@ void printAndUpdateValues()
   String str = "Disc:" + (String)disconnectionNumber + "; " + (String)connectionString;
   Serial.println(str);
 
-  temperatureAllarms(temp_1);
+  temperatureAllarms(temp_1, &messageText);
 
   String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"" ,dataTimeStartedModule ,str};
   displayText(text__);
@@ -235,29 +160,4 @@ void onReleCommandOnChange()
 {
   String txt = "Button pressed releStausOn = " + (String)releFeedbackOn;
   displayMessageSerialAndCloud_singleLine(txt, &messageText, false, true);
-}
-
-void temperatureAllarms(double temperature)
-{
-  if (temperature > 23 && temperatureSentMax == false)
-  {
-    String txt = "Tempe. Up= " + (String)temperature + " *C";
-    temperatureSentMax = true;
-    displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
-  }
-  else if (temperature < 22.7)
-  { 
-    temperatureSentMax = false;
-  }
-
-  if (temperature < 21 && temperatureSentMin == false)
-  {
-    String txt = "Tempe. Dw= " + (String)temperature + " *C";
-    temperatureSentMin = true;
-    displayMessageSerialAndCloud_singleLine(txt, &messageText, true, true);
-  }
-  else if (temperature > 21.3)
-  { 
-    temperatureSentMin = false;
-  }
 }

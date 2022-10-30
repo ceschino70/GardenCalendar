@@ -7,15 +7,15 @@ const char PASS[]               = SECRET_PASS;    // Network password (use for W
 const char DEVICE_KEY[]         = SECRET_DEVICE_KEY;    // Secret device password
 
 // Variable send & received to Arduino Cloud
-float humid_1;
-float temp_1;
-float press_1;
-bool  releCommandOn;
-bool  releFeedbackOn;
-int   cyclesNumber;
-bool  comandEnable;
-CloudTime releActivationTime;
-String messageText;
+float humid_1;                    // Output
+float temp_1;                     // Output
+float press_1;                    // Output
+bool  releCommandOn;              // Input
+bool  releFeedbackOn;             // Output
+int   cyclesNumber;               // Output
+bool  comandEnable;               // To delete!!!!!!!!!!!
+CloudTime releActivationTime;     // Output
+String messageText;               // Output
 
 void onReleCommandOnChange();
 
