@@ -5,29 +5,33 @@
 #include <Adafruit_BME280.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include "ArduinoIoTComnnection.h"
 
 // I2C Addresses
-#define SENSOR_TEMP_ADDRESS 0x76
-#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+#define SENSOR_TEMP_ADDRESS 0x76    // I2C Address of BME260 sensor
+#define SCREEN_ADDRESS 0x3C         // I2C Address of display OLED 
 
 #define SEALEVELPRESSURE_HPA (1011)
-#define OLED_RESET     -1           // Reset pin # (or -1 if sharing Arduino reset pin)
+#define OLED_RESET -1               // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_WIDTH 128            // OLED display width, in pixels
 #define SCREEN_HEIGHT 64            // OLED display height, in pixels
 #define NUMBER_OF_ROWS_DISPLAIED 8  // Number of rows 
 #define GPIO_RELE D8                // Relè connected to GPIO 15
 #define GPIO_RELE_FEEDBACK D7       // Relè feedback connected to GPIO 13
+#define GPIO_PUSCHBUTTON D0         // Push button pin GPIO 16
 
 // Definition of constant timers
-const int MAIN_INTERVAL         = 10;    // Main timer in millisec
-const int TEMPERATURE_ACQ_TIMER = 2000;   // Timer for read & update BME280 sensor
-const int RELE_CEACK_TIMER      = 2000;   // Filter commamd for relè 
-const int INTERVAL              = 1000;   // Interval at which to blink (milliseconds)
-const int ENABLE_COMMAND_TIMER  = 5000;   // Timer for command enable
-const int RELE_ON_TIMER         = 10000;  // Relè On timer
-const int RESET_ESP_TIMER       = 600000; // Number of millisec to wait before ESP reset when arduino IoT cloud connection is lost
-const long UTC_OFFSET_IN_SECONDS = 7200;  // Time zone +2h => 2h * 60min * 60sec = 7200
+const int MAIN_INTERVAL           = 10;     // Main timer in millisec
+const int FAST_CYCLE_TIMER        = 500;    // Fast timer: check push button
+const int SLOW_CYCLE_TIMER        = 2000;   // Slow timer: read & update BME280 sensor
+const int RELE_CEACK_TIMER        = 2000;   // Filter commamd for relè 
+const int INTERVAL                = 1000;   // Interval at which to blink (milliseconds)
+const int ENABLE_COMMAND_TIMER    = 5000;   // Timer for command enable
+const int RELE_ON_TIMER           = 10000;  // Relè On timer
+const int RESET_ESP_TIMER         = 600000; // Number of millisec to wait before ESP reset when arduino IoT cloud connection is lost
+const long UTC_OFFSET_IN_SECONDS  = 3600;   // Time zone +2h => 2h * 60min * 60sec = 7200
 
+// Global variables
 float         temp;
 int           humidity;
 unsigned long previousMillis = 0;                 // will store last time LED was updated
@@ -45,6 +49,22 @@ unsigned long currentMillis;
 int           cyclesNumberOfRele;
 int           releActivationTimeInSec;
 bool          firstTimeNTPUpdate = true;          // Disable restart function before first connection
+bool          statusButtonOld;
+bool          cloudConnection;
+
+struct temperatureAcqValue {
+  float temp;
+  float humid;
+  float press;
+  String tempStr;
+  String humidStr;
+  String pressStr;
+};
+
+enum menuDisplay_enum {
+  PageSensorsValue,
+  PageSettings
+};
 
 unsigned long previousMillisMainCycle = 0;
 unsigned long previousMilliscomandReleOn = 0;
@@ -53,6 +73,9 @@ unsigned long previousMillisLasExecutionProg = 0;
 bool temperatureSentMax = false;
 bool temperatureSentMin = false;
 
+// Set home page
+menuDisplay_enum menuDisplay = PageSensorsValue;
+temperatureAcqValue acq;
 
 //Temperature sensor
 Adafruit_BME280 bme; // I2C
@@ -63,6 +86,13 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", UTC_OFFSET_IN_SECONDS);
+
+// Timers instance
+Timer timer_BlinkLed  = Timer(10, 4000);
+Timer timer_cycleSlow = Timer(SLOW_CYCLE_TIMER, SLOW_CYCLE_TIMER);
+Timer timer_cycleFast = Timer(FAST_CYCLE_TIMER, FAST_CYCLE_TIMER);
+Timer timer_homePage  = Timer(10000,10000);
+
 
 void displayInit ()
 {
@@ -137,6 +167,7 @@ void temperatureAllarms(double temperature, String *messageTextForArduinoCloud)
   }
 }
 
+// Output manag for relè command
 bool checkReleRequesteOn(bool CommandOn)
 {
   if (CommandOn == true && CommandOn != releCommandOnPrevious){
@@ -156,6 +187,7 @@ bool checkReleRequesteOn(bool CommandOn)
   return CommandOn;
 }
 
+// Check relè status
 bool checkFeedbackRele()
 {
   bool returnReleFeedbackOn;
@@ -185,14 +217,17 @@ bool checkFeedbackRele()
   return returnReleFeedbackOn;
 }
 
-String checkConnctionAndRestart(bool connection, String *messageTextForArduinoCloud)
+// Check communication with cloud and if it is lost the board will be restart
+bool checkConnctionAndRestart(bool connection, String *messageTextForArduinoCloud)
 {
   String _connectionString;
+  bool _connectionBool = false;
   
   if (connection == 0)
   {
     Serial.println("counterESPReset = " + (String)counterESPReset);
     _connectionString = "LOST";
+    _connectionBool = false;
     ++disconnectionNumber;
     //digitalWrite(GPIO_RELE, true);
 
@@ -203,12 +238,13 @@ String checkConnctionAndRestart(bool connection, String *messageTextForArduinoCl
       ESP.restart();
     }
     
-    counterESPReset += TEMPERATURE_ACQ_TIMER;
+    counterESPReset += SLOW_CYCLE_TIMER;
   }
   else
   {
     //digitalWrite(GPIO_RELE, false);
     _connectionString = "OK";
+    _connectionBool = true;
     counterESPReset = 0;
 
     // Disable restart function before first connection
@@ -221,6 +257,110 @@ String checkConnctionAndRestart(bool connection, String *messageTextForArduinoCl
       firstTimeNTPUpdate = false;
     }
   }
-
-  return _connectionString;
+  return _connectionBool;
 }
+
+// Read temperature sonsor BME260
+temperatureAcqValue temperatureAcq()
+{
+  temperatureAcqValue acq;
+
+  acq.temp = bme.readTemperature();
+  acq.tempStr = "Tempe. = " + (String)acq.temp + " *C";
+  Serial.println(acq.tempStr);
+  
+  acq.press = bme.readPressure() / 100.0F;
+  acq.pressStr = "Press. = " + (String)acq.press + " hPa";
+  Serial.println(acq.pressStr);
+  
+  Serial.print("Approx. Altitude = ");
+  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+  Serial.println(" m");
+  
+  acq.humid = bme.readHumidity();
+  acq.humidStr = "Humid. = " +  (String)acq.humid + " %";
+  Serial.println(acq.humidStr);
+
+  return acq;
+}
+
+// Page sensors designe
+void PageSensorsValueFun()
+{
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0,0);
+
+  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.println("Sensor values:      ");
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.println("");
+  display.println(acq.tempStr);
+  display.println(acq.humidStr);
+  display.println(acq.pressStr);
+
+  display.display();
+}
+
+// Page setting designe
+void PageSettingsFun()
+{
+  String connectionCloud = (cloudConnection)? "OK": "LOST";
+  String releStatusString = (releFeedbackOn)? "ON": "OFF";
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0,0);
+
+  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.println("Settings page:      ");
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.println("");
+  display.println("Reconn: " + dataTimeStartedModule);
+  display.println("Conn. status: " + connectionCloud);
+  display.println("Rele status: " + releStatusString);
+  display.println("Rele time on: " + (String)releActivationTime);
+
+  display.display();
+}
+
+void displayManagement()
+{
+  switch (menuDisplay) 
+  {
+    case PageSensorsValue:
+      PageSensorsValueFun();
+      break;
+    case PageSettings:
+      PageSettingsFun();
+      break;
+    default:
+      // statements
+      break;
+  }
+}
+
+void menuChangePage()
+{
+  switch (menuDisplay) 
+  {
+    case PageSensorsValue:
+      menuDisplay = PageSettings;
+      timer_homePage.run();
+      break;
+    case PageSettings:
+      menuDisplay = PageSensorsValue;
+      break;
+    default:
+      menuDisplay = PageSensorsValue;
+      break;
+  }
+}
+
+// After x seconds move the page at home
+void timerHomePage()
+{
+  menuDisplay = PageSettings;
+  menuChangePage();
+}
+

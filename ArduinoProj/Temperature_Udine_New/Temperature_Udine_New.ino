@@ -1,15 +1,14 @@
 #include "Timer.h"
 #include "arduino_secrets.h"
 #include "thingProperties.h"
-#include "ArduinoIoTComnnection.h"
+#include <ArduinoMqttClient.h>
 
 bool enable = false;
 
 void blinkLed();
 void printAndUpdateValues();
 
-Timer timer_BlinkLed = Timer(10, 4000);
-Timer timer_UpdateValue = Timer(TEMPERATURE_ACQ_TIMER, TEMPERATURE_ACQ_TIMER);
+MqttClient mqttClient = NULL;
 
 void setup() 
 {
@@ -76,11 +75,16 @@ void setup()
   timer_BlinkLed.isRepeating();
   timer_BlinkLed.run();
 
-  timer_UpdateValue.cback(cycleSlow);
-  timer_UpdateValue.isRepeating();
-  timer_UpdateValue.run();
+  timer_cycleSlow.cback(cycleSlow);
+  timer_cycleSlow.isRepeating();
+  timer_cycleSlow.run();
+
+  timer_cycleFast.cback(cycleFast);
+  timer_cycleFast.isRepeating();
+  timer_cycleFast.run();
+
+  timer_homePage.cback(timerHomePage);
   // ------------------------ Date Time Update -------------------------
-  
   timeClient.update();
   dataTimeStartedModule = (String)timeClient.getFormattedTime();
                           
@@ -96,6 +100,7 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);       // Initialize the LED_BUILTIN pin as an output
   pinMode(GPIO_RELE, OUTPUT);         // Initialize relè output
   pinMode(GPIO_RELE_FEEDBACK, INPUT); // Initialize relè feedback
+  pinMode(GPIO_PUSCHBUTTON, INPUT);   // Initialize push button 
 }
 
 void loop() 
@@ -106,7 +111,9 @@ void loop()
 
   // Update all timers
   timer_BlinkLed.loop();
-  timer_UpdateValue.loop();
+  timer_cycleSlow.loop();
+  timer_cycleFast.loop();
+  timer_homePage.loop();
 
   // Check relè command requeste from Cloud
   releCommandOn = checkReleRequesteOn(releCommandOn);
@@ -118,35 +125,42 @@ void loop()
   releActivationTime = releActivationTimeInSec;
 }
 
+void cycleFast()
+{
+  bool button = digitalRead(GPIO_PUSCHBUTTON);
+
+  if ((button == 1) && (statusButtonOld == 0))
+  {
+    menuChangePage();
+    Serial.println("$-----> Button pressed.");
+  }
+  displayManagement();
+
+  statusButtonOld = button;
+}
+
 void cycleSlow() 
 {
-  String connectionString = checkConnctionAndRestart(ArduinoCloud.connected(), &messageText);
-    
-  temp_1 = bme.readTemperature();
-  String tempString = "Tempe. = " + (String)temp_1 + " *C";
-  Serial.println(tempString);
+  // Check cloud connection & restart board
+  cloudConnection = checkConnctionAndRestart(ArduinoCloud.connected(), &messageText);
   
-  press_1 = bme.readPressure() / 100.0F;
-  String pressureString = "Press. = " + (String)press_1 + " hPa";
-  Serial.println(pressureString);
-  
-  Serial.print("Approx. Altitude = ");
-  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  Serial.println(" m");
-  
-  humid_1 = bme.readHumidity();
-  String humidityString = "Humid. = " +  (String)humid_1 + " %";
-  Serial.println(humidityString);
-  
-  String str = "Disc:" + (String)disconnectionNumber + "; " + (String)connectionString;
-  Serial.println(str);
+  // Acquisition values from BME260
+  acq = temperatureAcq();
 
-  temperatureAllarms(temp_1, &messageText);
+  // Check temperature threshold
+  temperatureAllarms(acq.temp, &messageText);
 
-  String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", tempString, humidityString, pressureString,"" ,dataTimeStartedModule ,str};
-  displayText(text__);
+  //String str = "Disc:" + (String)disconnectionNumber + "; " + (String)connectionString;
+  //Serial.println(str);
+
+  //String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", acq.tempStr, acq.humidStr, acq.pressStr,"" ,dataTimeStartedModule ,""};
+  //displayText(text__);
 
   Serial.println();
+
+  temp_1  = acq.temp;
+  humid_1 = acq.humid;
+  press_1 = acq.press;
   
   ArduinoCloud.update();
 }
