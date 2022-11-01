@@ -13,11 +13,9 @@ float press_1;                    // Output
 bool  releCommandOn;              // Input
 bool  releFeedbackOn;             // Output
 int   cyclesNumber;               // Output
-bool  comandEnable;               // To delete!!!!!!!!!!!
 CloudTime releActivationTime;     // Output
 String messageText;               // Output
-
-void onReleCommandOnChange();
+bool programRunning;
 
 void initProperties()
 {
@@ -26,12 +24,12 @@ void initProperties()
   ArduinoCloud.addProperty(humid_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(temp_1, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(press_1, READ, ON_CHANGE, NULL);
-  ArduinoCloud.addProperty(releCommandOn, READWRITE, ON_CHANGE, onReleCommandOnChange);
-  ArduinoCloud.addProperty(comandEnable, READWRITE, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(releCommandOn, READWRITE, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(releFeedbackOn, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(cyclesNumber, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(releActivationTime, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(messageText, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(programRunning, READWRITE, 1 * SECONDS, NULL);
 }
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);

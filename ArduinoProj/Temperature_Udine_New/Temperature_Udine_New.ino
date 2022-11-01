@@ -1,13 +1,7 @@
 #include "arduino_secrets.h"
 #include "thingProperties.h"
 
-bool enable = false;
-
-void blinkLed();
-void printAndUpdateValues();
-
-MqttClient mqttClient = NULL;
-
+// Start function
 void setup() 
 {
   // Initialize serial and wait for port to open:
@@ -104,8 +98,15 @@ void setup()
   pinMode(GPIO_RELE, OUTPUT);         // Initialize relè output
   pinMode(GPIO_RELE_FEEDBACK, INPUT); // Initialize relè feedback
   pinMode(GPIO_PUSCHBUTTON, INPUT);   // Initialize push button 
+
+  // ------------------------ Temperature theshold ---------------------
+  tempTh.minAllarm  = 22.5;
+  tempTh.minWorning = 22.5;
+  tempTh.maxWorning = 23.5;
+  tempTh.maxAllarm  = 23.5;
 }
 
+// Main loop
 void loop() 
 {
   currentMillis = millis();
@@ -118,6 +119,9 @@ void loop()
   timer_cycleFast.loop();
   timer_homePage.loop();
 
+  // Edge detection
+  edgeDetecPushButton.loop();
+
   // Check relè command requeste from Cloud
   releCommandOn = checkReleRequesteOn(releCommandOn);
   // Check relè feedback from Arduino Input
@@ -128,20 +132,23 @@ void loop()
   releActivationTime = releActivationTimeInSec;
 }
 
+// Fast cycle
 void cycleFast()
 {
   buttonStatus = digitalRead(GPIO_PUSCHBUTTON);
-  edgeDetecPushButton.loop();
+
+  // Display refresh
   displayManagement();
 }
 
+// Slow cycle
 void cycleSlow() 
 {
   // Check cloud connection & restart board
   cloudConnection = checkConnctionAndRestart(ArduinoCloud.connected(), &messageText);
   
   // Acquisition values from BME260
-  acq = temperatureAcq();
+  acq = temperatureAcq(&messageText);
 
   // Check temperature threshold
   temperatureAllarms(acq.temp, &messageText);
@@ -153,15 +160,12 @@ void cycleSlow()
   ArduinoCloud.update();
 }
 
+// Blink main led function
 void blinkLed()
 {
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  programRunning = !programRunning;
+  
+  ArduinoCloud.update();
 }
-
-void onReleCommandOnChange()  
-{
-  String txt = "Button pressed releStausOn = " + (String)releFeedbackOn;
-  displayMessageSerialAndCloud_singleLine(txt, &messageText, false, true);
-}
-
 

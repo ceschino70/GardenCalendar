@@ -56,6 +56,14 @@ bool          firstTimeNTPUpdate = true;          // Disable restart function be
 bool          statusButtonOld;
 bool          cloudConnection;
 bool          buttonStatus = false;
+float         deltaTemperature = 0.4;
+
+struct temperatureTheshold {
+  float minAllarm;
+  float minWorning;
+  float maxWorning;
+  float maxAllarm;
+};
 
 struct temperatureAcqValue {
   float temp;
@@ -81,6 +89,7 @@ bool temperatureSentMin = false;
 // Set home page
 menuDisplay_enum menuDisplay = PageSensorsValue;
 temperatureAcqValue acq;
+temperatureTheshold tempTh;
 
 //Temperature sensor
 Adafruit_BME280 bme; // I2C
@@ -101,40 +110,6 @@ Timer timer_homePage  = Timer(10000,10000);
 // Edge detection instances
 EdgeDetection edgeDetecPushButton = EdgeDetection();
 
-
-void displayInit ()
-{
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) 
-  {
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
-  }
-  display.display();
-  delay(2000); // Pause for 2 seconds
-
-  // Clear the buffer
-  display.clearDisplay();
-}
-
-/*void displayText (String text[])
-{
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setCursor(0,0);
-  //display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-  
-  for(int i = 0; i < NUMBER_OF_ROWS_DISPLAIED; i++)
-  {
-    if (i == 0)
-      display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-    else
-      display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-      
-    display.println(text[i]);
-  }
-  display.display();
-}*/
-
 void displayMessageSerialAndCloud_singleLine(String message, String *messageTextForArduinoCloud, bool enablesendingToArduinoCloud = true, bool debugString = false)
 {
   String text;
@@ -150,26 +125,40 @@ void displayMessageSerialAndCloud_singleLine(String message, String *messageText
     *messageTextForArduinoCloud = text;
 }
 
+void displayInit ()
+{
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) 
+  {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+  display.display();
+  delay(2000); // Pause for 2 seconds
+
+  // Clear the buffer
+  display.clearDisplay();
+}
+
 void temperatureAllarms(double temperature, String *messageTextForArduinoCloud)
 {  
-  if (temperature > 24.8 && temperatureSentMax == false)
+  if (temperature > tempTh.maxAllarm && temperatureSentMax == false)
   {
     String txt = "Tempe. Up= " + (String)temperature + " *C";
     temperatureSentMax = true;
     displayMessageSerialAndCloud_singleLine(txt, messageTextForArduinoCloud, true, true);
   }
-  else if (temperature < 24.7)
+  else if (temperature < (tempTh.maxAllarm - deltaTemperature))
   { 
     temperatureSentMax = false;
   }
 
-  if (temperature < 21 && temperatureSentMin == false)
+  if (temperature < tempTh.minAllarm && temperatureSentMin == false)
   {
     String txt = "Tempe. Dw= " + (String)temperature + " *C";
     temperatureSentMin = true;
     displayMessageSerialAndCloud_singleLine(txt, messageTextForArduinoCloud, true, true);
   }
-  else if (temperature > 21.3)
+  else if (temperature > (tempTh.minAllarm + deltaTemperature))
   { 
     temperatureSentMin = false;
   }
@@ -179,14 +168,14 @@ void temperatureAllarms(double temperature, String *messageTextForArduinoCloud)
 bool checkReleRequesteOn(bool CommandOn)
 {
   if (CommandOn == true && CommandOn != releCommandOnPrevious){
-    digitalWrite(GPIO_RELE, true);                                  // Set relè ON
+    digitalWrite(GPIO_RELE, true);                                    // Set relè ON
     previousMilliscomandReleOn = currentMillis;                       // Reset timer
     
     Serial.println("-----------> Button pressed releStausOn = " + (String)CommandOn);
   }
 
   if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER){ // Check if the timer if expired
-    digitalWrite(GPIO_RELE, false);                                 // Set relè OFF
+    digitalWrite(GPIO_RELE, false);                                   // Set relè OFF
     CommandOn = false;                                                // Set the switch on arduino cloud to OFF
   }
   
@@ -269,13 +258,14 @@ bool checkConnctionAndRestart(bool connection, String *messageTextForArduinoClou
 }
 
 // Read temperature sonsor BME260
-temperatureAcqValue temperatureAcq()
+temperatureAcqValue temperatureAcq(String *messageTextForArduinoCloud)
 {
   temperatureAcqValue acq;
 
   acq.temp = bme.readTemperature();
   acq.tempStr = "Tempe. = " + (String)acq.temp + " *C";
-  Serial.println(acq.tempStr);
+  displayMessageSerialAndCloud_singleLine(acq.tempStr, messageTextForArduinoCloud, true, false);
+  //Serial.println(acq.tempStr);
   
   acq.press = bme.readPressure() / 100.0F;
   acq.pressStr = "Press. = " + (String)acq.press + " hPa";
@@ -328,7 +318,7 @@ void PageSettingsFun()
 {
   String connectionCloud = (cloudConnection)? "OK": "LOST";
   String releStatusString = (releFeedbackOn)? "ON": "OFF";
-
+  
   display.clearDisplay();
   display.setTextSize(1);
   display.setCursor(0,0);
@@ -341,10 +331,12 @@ void PageSettingsFun()
   display.println("Conn. status: " + connectionCloud);
   display.println("Rele status: " + releStatusString);
   display.println("Rele time on: " + (String)releActivationTime);
+  display.println("Min/Max" + (String)tempTh.minAllarm + "/" + (String)tempTh.maxAllarm);
 
   display.display();
 }
 
+// Call page function in order to the page selected
 void displayManagement()
 {
   switch (menuDisplay) 
@@ -361,6 +353,7 @@ void displayManagement()
   }
 }
 
+// Function to change the page when the button is pressed
 void menuChangePage()
 {
   switch (menuDisplay) 
