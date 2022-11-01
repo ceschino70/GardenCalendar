@@ -264,20 +264,24 @@ temperatureAcqValue temperatureAcq(String *messageTextForArduinoCloud)
 
   acq.temp = bme.readTemperature();
   acq.tempStr = "Tempe. = " + (String)acq.temp + " *C";
-  displayMessageSerialAndCloud_singleLine(acq.tempStr, messageTextForArduinoCloud, true, false);
+  displayMessageSerialAndCloud_singleLine(acq.tempStr, messageTextForArduinoCloud, false, true);
   //Serial.println(acq.tempStr);
   
   acq.press = bme.readPressure() / 100.0F;
   acq.pressStr = "Press. = " + (String)acq.press + " hPa";
-  Serial.println(acq.pressStr);
+  displayMessageSerialAndCloud_singleLine(acq.pressStr, messageTextForArduinoCloud, false, true);
+  //Serial.println(acq.pressStr);
   
-  Serial.print("Approx. Altitude = ");
-  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  Serial.println(" m");
+  //Serial.print("Approx. Altitude = ");
+  //Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+  //Serial.println(" m");
+  String strPre = "Approx. Altitude = " + (String)bme.readAltitude(SEALEVELPRESSURE_HPA) + " m";
+  displayMessageSerialAndCloud_singleLine(strPre, messageTextForArduinoCloud, false, true);
   
   acq.humid = bme.readHumidity();
   acq.humidStr = "Humid. = " +  (String)acq.humid + " %";
-  Serial.println(acq.humidStr);
+  displayMessageSerialAndCloud_singleLine(acq.humidStr, messageTextForArduinoCloud, false, true);
+  //Serial.println(acq.humidStr);
 
   return acq;
 }
