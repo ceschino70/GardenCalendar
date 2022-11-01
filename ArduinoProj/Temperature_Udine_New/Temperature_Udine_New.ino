@@ -1,7 +1,5 @@
-#include "Timer.h"
 #include "arduino_secrets.h"
 #include "thingProperties.h"
-#include <ArduinoMqttClient.h>
 
 bool enable = false;
 
@@ -28,7 +26,7 @@ void setup()
   displayInit();
   
   String text_[NUMBER_OF_ROWS_DISPLAIED] = {"Initializing...", "", "", "", ""};
-  displayText(text_);
+  //displayText(text_);
 
   Serial.println("-- Display Init OK --");
 
@@ -84,6 +82,11 @@ void setup()
   timer_cycleFast.run();
 
   timer_homePage.cback(timerHomePage);
+
+  // ------------------------ Edge detection ---------------------------
+  edgeDetecPushButton.cback(menuChangePage);
+  edgeDetecPushButton.trigOn();
+  edgeDetecPushButton.run(&buttonStatus);
   // ------------------------ Date Time Update -------------------------
   timeClient.update();
   dataTimeStartedModule = (String)timeClient.getFormattedTime();
@@ -127,16 +130,9 @@ void loop()
 
 void cycleFast()
 {
-  bool button = digitalRead(GPIO_PUSCHBUTTON);
-
-  if ((button == 1) && (statusButtonOld == 0))
-  {
-    menuChangePage();
-    Serial.println("$-----> Button pressed.");
-  }
+  buttonStatus = digitalRead(GPIO_PUSCHBUTTON);
+  edgeDetecPushButton.loop();
   displayManagement();
-
-  statusButtonOld = button;
 }
 
 void cycleSlow() 
@@ -149,15 +145,7 @@ void cycleSlow()
 
   // Check temperature threshold
   temperatureAllarms(acq.temp, &messageText);
-
-  //String str = "Disc:" + (String)disconnectionNumber + "; " + (String)connectionString;
-  //Serial.println(str);
-
-  //String text__[NUMBER_OF_ROWS_DISPLAIED] = {"Sensor values:      ", "", acq.tempStr, acq.humidStr, acq.pressStr,"" ,dataTimeStartedModule ,""};
-  //displayText(text__);
-
-  Serial.println();
-
+  
   temp_1  = acq.temp;
   humid_1 = acq.humid;
   press_1 = acq.press;

@@ -5,7 +5,9 @@
 #include <Adafruit_BME280.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include "Timer.h"
 #include "ArduinoIoTComnnection.h"
+#include "EdgeDetection.h"
 
 // I2C Addresses
 #define SENSOR_TEMP_ADDRESS 0x76    // I2C Address of BME260 sensor
@@ -16,6 +18,8 @@
 #define SCREEN_WIDTH 128            // OLED display width, in pixels
 #define SCREEN_HEIGHT 64            // OLED display height, in pixels
 #define NUMBER_OF_ROWS_DISPLAIED 8  // Number of rows 
+
+// GPIO Description 
 #define GPIO_RELE D8                // Relè connected to GPIO 15
 #define GPIO_RELE_FEEDBACK D7       // Relè feedback connected to GPIO 13
 #define GPIO_PUSCHBUTTON D0         // Push button pin GPIO 16
@@ -51,6 +55,7 @@ int           releActivationTimeInSec;
 bool          firstTimeNTPUpdate = true;          // Disable restart function before first connection
 bool          statusButtonOld;
 bool          cloudConnection;
+bool          buttonStatus = false;
 
 struct temperatureAcqValue {
   float temp;
@@ -93,6 +98,9 @@ Timer timer_cycleSlow = Timer(SLOW_CYCLE_TIMER, SLOW_CYCLE_TIMER);
 Timer timer_cycleFast = Timer(FAST_CYCLE_TIMER, FAST_CYCLE_TIMER);
 Timer timer_homePage  = Timer(10000,10000);
 
+// Edge detection instances
+EdgeDetection edgeDetecPushButton = EdgeDetection();
+
 
 void displayInit ()
 {
@@ -108,7 +116,7 @@ void displayInit ()
   display.clearDisplay();
 }
 
-void displayText (String text[])
+/*void displayText (String text[])
 {
   display.clearDisplay();
   display.setTextSize(1);
@@ -125,7 +133,7 @@ void displayText (String text[])
     display.println(text[i]);
   }
   display.display();
-}
+}*/
 
 void displayMessageSerialAndCloud_singleLine(String message, String *messageTextForArduinoCloud, bool enablesendingToArduinoCloud = true, bool debugString = false)
 {
@@ -298,6 +306,10 @@ void PageSensorsValueFun()
   display.println(acq.tempStr);
   display.println(acq.humidStr);
   display.println(acq.pressStr);
+  display.println("");
+  display.println("");
+  display.println("Time: " + (String)timeClient.getFormattedTime());
+
 
   display.display();
 }
