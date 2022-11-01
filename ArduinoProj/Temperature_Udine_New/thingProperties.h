@@ -295,6 +295,15 @@ temperatureAcqValue temperatureAcq()
 // Page sensors designe
 void PageSensorsValueFun()
 {
+  String tempTh;
+  if (temperatureSentMax == true){
+    tempTh = "Temp. Max";
+  }else if(temperatureSentMin = true){
+    tempTh = "Temp. Min";
+  }else{
+    tempTh = "Temp. OK";
+  }
+
   display.clearDisplay();
   display.setTextSize(1);
   display.setCursor(0,0);
@@ -307,7 +316,7 @@ void PageSensorsValueFun()
   display.println(acq.humidStr);
   display.println(acq.pressStr);
   display.println("");
-  display.println("");
+  display.println(tempTh);
   display.println("Time: " + (String)timeClient.getFormattedTime());
 
 
