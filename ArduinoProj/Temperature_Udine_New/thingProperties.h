@@ -11,29 +11,29 @@
 
 // I2C Addresses
 #define SENSOR_TEMP_ADDRESS 0x76    // I2C Address of BME260 sensor
-#define SCREEN_ADDRESS 0x3C         // I2C Address of display OLED 
+#define SCREEN_ADDRESS      0x3C    // I2C Address of display OLED 
 
-#define SEALEVELPRESSURE_HPA (1011)
-#define OLED_RESET -1               // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_WIDTH 128            // OLED display width, in pixels
-#define SCREEN_HEIGHT 64            // OLED display height, in pixels
-#define NUMBER_OF_ROWS_DISPLAIED 8  // Number of rows 
+#define SEALEVELPRESSURE_HPA      1011  // See level pressure
+#define OLED_RESET                -1      // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_WIDTH              128     // OLED display width, in pixels
+#define SCREEN_HEIGHT             64      // OLED display height, in pixels
+#define NUMBER_OF_ROWS_DISPLAIED  8       // Number of rows 
 
 // GPIO Description 
-#define GPIO_RELE D8                // Relè connected to GPIO 15
-#define GPIO_RELE_FEEDBACK D7       // Relè feedback connected to GPIO 13
-#define GPIO_PUSCHBUTTON D0         // Push button pin GPIO 16
+#define GPIO_RELE           D8      // Relè connected to GPIO 15
+#define GPIO_RELE_FEEDBACK  D7      // Relè feedback connected to GPIO 13
+#define GPIO_PUSCHBUTTON    D5      // Push button pin GPIO 16
 
-// Definition of constant timers
-const int MAIN_INTERVAL           = 10;     // Main timer in millisec
-const int FAST_CYCLE_TIMER        = 500;    // Fast timer: check push button
-const int SLOW_CYCLE_TIMER        = 2000;   // Slow timer: read & update BME280 sensor
-const int RELE_CEACK_TIMER        = 2000;   // Filter commamd for relè 
-const int INTERVAL                = 1000;   // Interval at which to blink (milliseconds)
-const int ENABLE_COMMAND_TIMER    = 5000;   // Timer for command enable
-const int RELE_ON_TIMER           = 10000;  // Relè On timer
-const int RESET_ESP_TIMER         = 600000; // Number of millisec to wait before ESP reset when arduino IoT cloud connection is lost
-const long UTC_OFFSET_IN_SECONDS  = 3600;   // Time zone +2h => 2h * 60min * 60sec = 7200
+// Constants timer 
+#define MAIN_INTERVAL            10     // Main timer in millisec
+#define FAST_CYCLE_TIMER         500    // Fast timer: check push button
+#define SLOW_CYCLE_TIMER         2000   // Slow timer: read & update BME280 sensor
+#define RELE_CEACK_TIMER         2000   // Filter commamd for relè 
+#define INTERVAL                 1000   // Interval at which to blink (milliseconds)
+#define ENABLE_COMMAND_TIMER     5000   // Timer for command enable
+#define RELE_ON_TIMER            10000  // Relè On timer
+#define RESET_ESP_TIMER          600000 // Number of millisec to wait before ESP reset when arduino IoT cloud connection is lost
+#define UTC_OFFSET_IN_SECONDS    3600   // Time zone +2h => 2h * 60min * 60sec = 7200
 
 // Global variables
 float         temp;
@@ -58,6 +58,11 @@ bool          cloudConnection;
 bool          buttonStatus = false;
 float         deltaTemperature = 0.4;
 
+// Theshold values
+// minAllarm = Minimum allarm theshold
+// minWorning = Minimum worning theshold
+// maxWorning = Maximum worning theshold
+// maxAllarm = Maximum allarm theshold
 struct temperatureTheshold {
   float minAllarm;
   float minWorning;
@@ -65,6 +70,13 @@ struct temperatureTheshold {
   float maxAllarm;
 };
 
+// BME260 sensor values
+// temp = temperature [°C]
+// humid = humitity [%]
+// press = pressure [hPA]
+// tempStr = value in string form
+// humidStr = value in string form
+// pressStr = value in string form
 struct temperatureAcqValue {
   float temp;
   float humid;
@@ -74,6 +86,19 @@ struct temperatureAcqValue {
   String pressStr;
 };
 
+//  Button with interrupt
+//  PIN = GPIO number
+//  numberKeyPresses = number of pressed time
+//  pressed = event elapsed
+struct button {
+    const uint8_t PIN;
+    uint32_t numberKeyPresses;
+    bool pressed;
+};
+
+// Pages displaied
+// PageSensorsValue = sensor value page
+// PageSettings = setting page
 enum menuDisplay_enum {
   PageSensorsValue,
   PageSettings
@@ -90,6 +115,11 @@ bool temperatureSentMin = false;
 menuDisplay_enum menuDisplay = PageSensorsValue;
 temperatureAcqValue acq;
 temperatureTheshold tempTh;
+
+button button1 = {GPIO_PUSCHBUTTON, 0, false};
+//variables to keep track of the timing of recent interrupts
+unsigned long button_time = 0;  
+unsigned long last_button_time = 0; 
 
 //Temperature sensor
 Adafruit_BME280 bme; // I2C
@@ -125,6 +155,7 @@ void displayMessageSerialAndCloud_singleLine(String message, String *messageText
     *messageTextForArduinoCloud = text;
 }
 
+// Display initialization
 void displayInit ()
 {
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) 
@@ -139,6 +170,7 @@ void displayInit ()
   display.clearDisplay();
 }
 
+// Check if the temperature is inside the thresholds limits
 void temperatureAllarms(double temperature, String *messageTextForArduinoCloud)
 {  
   if (temperature > tempTh.maxAllarm && temperatureSentMax == false)
@@ -265,23 +297,18 @@ temperatureAcqValue temperatureAcq(String *messageTextForArduinoCloud)
   acq.temp = bme.readTemperature();
   acq.tempStr = "Tempe. = " + (String)acq.temp + " *C";
   displayMessageSerialAndCloud_singleLine(acq.tempStr, messageTextForArduinoCloud, false, true);
-  //Serial.println(acq.tempStr);
+
   
   acq.press = bme.readPressure() / 100.0F;
   acq.pressStr = "Press. = " + (String)acq.press + " hPa";
   displayMessageSerialAndCloud_singleLine(acq.pressStr, messageTextForArduinoCloud, false, true);
-  //Serial.println(acq.pressStr);
-  
-  //Serial.print("Approx. Altitude = ");
-  //Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  //Serial.println(" m");
+
   String strPre = "Approx. Altitude = " + (String)bme.readAltitude(SEALEVELPRESSURE_HPA) + " m";
   displayMessageSerialAndCloud_singleLine(strPre, messageTextForArduinoCloud, false, true);
   
   acq.humid = bme.readHumidity();
   acq.humidStr = "Humid. = " +  (String)acq.humid + " %";
   displayMessageSerialAndCloud_singleLine(acq.humidStr, messageTextForArduinoCloud, false, true);
-  //Serial.println(acq.humidStr);
 
   return acq;
 }
@@ -380,5 +407,18 @@ void timerHomePage()
 {
   menuDisplay = PageSettings;
   menuChangePage();
+}
+
+// Function called from interupt
+void ICACHE_RAM_ATTR interruptButtonPrssed()
+{
+  display.println("--->Button pressed.");
+  button_time = millis();
+  if (button_time - last_button_time > 250)
+  {
+    button1.numberKeyPresses++;
+    button1.pressed = true;
+    last_button_time = button_time;
+  }
 }
 

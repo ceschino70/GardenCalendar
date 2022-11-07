@@ -97,7 +97,9 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);       // Initialize the LED_BUILTIN pin as an output
   pinMode(GPIO_RELE, OUTPUT);         // Initialize relè output
   pinMode(GPIO_RELE_FEEDBACK, INPUT); // Initialize relè feedback
-  pinMode(GPIO_PUSCHBUTTON, INPUT);   // Initialize push button 
+  
+  pinMode(button1.PIN, INPUT_PULLUP);        // Initialize push button 
+  attachInterrupt(button1.PIN, interruptButtonPrssed, FALLING);
 
   // ------------------------ Temperature theshold ---------------------
   tempTh.minAllarm  = 22.5;
@@ -135,7 +137,13 @@ void loop()
 // Fast cycle
 void cycleFast()
 {
-  buttonStatus = digitalRead(GPIO_PUSCHBUTTON);
+  //buttonStatus = digitalRead(GPIO_PUSCHBUTTON);
+
+  if (button1.pressed) {
+        Serial.printf("Button has been pressed %u times\n", button1.numberKeyPresses);
+        button1.pressed = false;
+        menuChangePage();
+    }
 
   // Display refresh
   displayManagement();
@@ -168,4 +176,5 @@ void blinkLed()
   
   ArduinoCloud.update();
 }
+
 
