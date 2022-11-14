@@ -1,5 +1,6 @@
 #include "arduino_secrets.h"
 #include "thingProperties.h"
+#include "TimerInterrupt.h"
 
 // Start function
 void setup() 
@@ -10,8 +11,12 @@ void setup()
   delay(1500);
   
   Serial.println("");
-  Serial.println("-- Serial STARTED! --");
+  Serial.println("");
+  Serial.println("------------------------------------------------------------");
+  Serial.println("------------------- PROGRAM STARTED! -----------------------");
+  Serial.println("------------------------------------------------------------");
 
+  Serial.println("-- Serial STARTED! --");
   timeClient.begin();
   delay(1500);
   Serial.println("-- NTPClient STARTED! --");
@@ -24,36 +29,14 @@ void setup()
 
   Serial.println("-- Display Init OK --");
 
-  // Init the connection with Arduino IoT Cloud
-  initProperties();
-
-  // Connect to Arduino IoT Cloud
-  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
-  
-  /*
-     The following function allows you to obtain more information
-     related to the state of network and IoT Cloud connection and errors
-     the higher number the more granular information you’ll get.
-     The default is 0 (only errors).
-     Maximum is 4
- */
-  setDebugMessageLevel(4);
-  ArduinoCloud.printDebugInfo();
-
-  bool status;
-
-  // default settings
-  // (you can also pass in a Wire library object like &Wire2)
-  status = bme.begin(SENSOR_TEMP_ADDRESS);
-  if (!status) 
+  // -------------------- BME280 sensor setting -----------------------
+  if (!bme.begin(SENSOR_TEMP_ADDRESS)) 
   {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    Serial.println("**** Could not find a valid BME280 sensor, check wiring!");
     while (1);
   }
 
   Serial.println("-- Sensor communication Init OK --");
-
-  Serial.println();
 
   // Set the switch on arduino cloud to OFF
   releCommandOn = false;
@@ -61,6 +44,13 @@ void setup()
   // Set counter to 0
   millisecOfReleOn = 0;
 
+  // ------------------------ Timer Interrupt --------------------------
+  if (timerInteruptInit()){
+    Serial.println("-- Timer Interrupt setup OK --");    
+  }else{
+    Serial.println("**** Timer Interrupt setup ERROR!");
+  }
+  delay(1500);
 
   // ------------------------ Init Timers ------------------------------
   timer_BlinkLed.cback(blinkLed);
@@ -81,31 +71,41 @@ void setup()
   edgeDetecPushButton.cback(menuChangePage);
   edgeDetecPushButton.trigOn();
   edgeDetecPushButton.run(&buttonStatus);
+  
   // ------------------------ Date Time Update -------------------------
   timeClient.update();
   dataTimeStartedModule = (String)timeClient.getFormattedTime();
-                          
   Serial.println("-- Module started: " + dataTimeStartedModule);
   
-  Serial.print(timeClient.getHours());
-  Serial.print(":");
-  Serial.print(timeClient.getMinutes());
-  Serial.print(":");
-  Serial.println(timeClient.getSeconds());
-  
   // ------------------------ Init GPIOs -------------------------------
-  pinMode(LED_BUILTIN, OUTPUT);       // Initialize the LED_BUILTIN pin as an output
-  pinMode(GPIO_RELE, OUTPUT);         // Initialize relè output
-  pinMode(GPIO_RELE_FEEDBACK, INPUT); // Initialize relè feedback
-  
-  pinMode(button1.PIN, INPUT_PULLUP);        // Initialize push button 
+  pinMode(LED_BUILTIN, OUTPUT);             // Initialize the LED_BUILTIN pin as an output
+  pinMode(GPIO_RELE, OUTPUT);               // Initialize relè output
+  pinMode(GPIO_RELE_FEEDBACK, INPUT);       // Initialize relè feedback
+  pinMode(button1.PIN, INPUT_PULLUP);       // Initialize push button 
   attachInterrupt(button1.PIN, interruptButtonPrssed, FALLING);
 
   // ------------------------ Temperature theshold ---------------------
-  tempTh.minAllarm  = 22.5;
-  tempTh.minWorning = 22.5;
+  tempTh.minAllarm  = 20.5;
+  tempTh.minWorning = 20.5;
   tempTh.maxWorning = 23.5;
   tempTh.maxAllarm  = 23.5;
+
+  //-------------------------- Arduino IoT Cloud ------------------------
+  initProperties();
+  // Connect to Arduino IoT Cloud
+  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+  
+  /*
+     The following function allows you to obtain more information
+     related to the state of network and IoT Cloud connection and errors
+     the higher number the more granular information you’ll get.
+     The default is 0 (only errors).
+     Maximum is 4
+ */
+  setDebugMessageLevel(4);
+  ArduinoCloud.printDebugInfo();
+
+  Serial.println("------------- Setup completed -----------------");
 }
 
 // Main loop
@@ -127,7 +127,7 @@ void loop()
   // Check relè command requeste from Cloud
   releCommandOn = checkReleRequesteOn(releCommandOn);
   // Check relè feedback from Arduino Input
-  releFeedbackOn = checkFeedbackRele();
+  checkFeedbackRele();
 
   // Update value on cloud
   cyclesNumber = cyclesNumberOfRele;
@@ -137,13 +137,11 @@ void loop()
 // Fast cycle
 void cycleFast()
 {
-  //buttonStatus = digitalRead(GPIO_PUSCHBUTTON);
-
   if (button1.pressed) {
-        Serial.printf("Button has been pressed %u times\n", button1.numberKeyPresses);
-        button1.pressed = false;
-        menuChangePage();
-    }
+    Serial.printf("Button has been pressed %u times\n", button1.numberKeyPresses);
+    button1.pressed = false;
+    menuChangePage();
+  }
 
   // Display refresh
   displayManagement();
@@ -152,8 +150,12 @@ void cycleFast()
 // Slow cycle
 void cycleSlow() 
 {
+  deltaTimeFunction_1 = millis();
   // Check cloud connection & restart board
   cloudConnection = checkConnctionAndRestart(ArduinoCloud.connected(), &messageText);
+
+  deltaTimeFunction_1 = millis() - deltaTimeFunction_1;
+  Serial.println("--> Time for checkConnctionAndRestart(): " + (String)deltaTimeFunction_1);  
   
   // Acquisition values from BME260
   acq = temperatureAcq(&messageText);
@@ -165,16 +167,22 @@ void cycleSlow()
   humid_1 = acq.humid;
   press_1 = acq.press;
   
+  deltaTimeFunction_2 = millis();
   ArduinoCloud.update();
+  deltaTimeFunction_2 = millis() - deltaTimeFunction_2;
+  dTimeUpdateToCloud = (int)deltaTimeFunction_2;
+  Serial.println("--> Time for ArduinoCloud.update(): " + (String)deltaTimeFunction_2); 
 }
 
 // Blink main led function
 void blinkLed()
 {
+  
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
   programRunning = !programRunning;
   
   ArduinoCloud.update();
+  
 }
 
 

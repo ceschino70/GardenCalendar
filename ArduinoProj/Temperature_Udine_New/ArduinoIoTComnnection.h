@@ -16,6 +16,7 @@ int   cyclesNumber;               // Output
 CloudTime releActivationTime;     // Output
 String messageText;               // Output
 bool programRunning;
+int dTimeUpdateToCloud;           // Output
 
 void initProperties()
 {
@@ -30,6 +31,7 @@ void initProperties()
   ArduinoCloud.addProperty(releActivationTime, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(messageText, READ, ON_CHANGE, NULL);
   ArduinoCloud.addProperty(programRunning, READWRITE, 1 * SECONDS, NULL);
+  ArduinoCloud.addProperty(dTimeUpdateToCloud, READ, 1 * SECONDS, NULL);
 }
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);

@@ -13,7 +13,7 @@
 #define SENSOR_TEMP_ADDRESS 0x76    // I2C Address of BME260 sensor
 #define SCREEN_ADDRESS      0x3C    // I2C Address of display OLED 
 
-#define SEALEVELPRESSURE_HPA      1011  // See level pressure
+#define SEALEVELPRESSURE_HPA      1011    // See level pressure
 #define OLED_RESET                -1      // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_WIDTH              128     // OLED display width, in pixels
 #define SCREEN_HEIGHT             64      // OLED display height, in pixels
@@ -57,6 +57,9 @@ bool          statusButtonOld;
 bool          cloudConnection;
 bool          buttonStatus = false;
 float         deltaTemperature = 0.4;
+unsigned long deltaTimeFunction_1 = 0;
+unsigned long deltaTimeFunction_2 = 0;
+int           relayStatusRead = 0;
 
 // Theshold values
 // minAllarm = Minimum allarm theshold
@@ -206,11 +209,6 @@ bool checkReleRequesteOn(bool CommandOn)
     Serial.println("-----------> Button pressed releStausOn = " + (String)CommandOn);
   }
 
-  if ((currentMillis - previousMilliscomandReleOn) >= RELE_ON_TIMER){ // Check if the timer if expired
-    digitalWrite(GPIO_RELE, false);                                   // Set relè OFF
-    CommandOn = false;                                                // Set the switch on arduino cloud to OFF
-  }
-  
   releCommandOnPrevious = CommandOn;
 
   return CommandOn;
@@ -220,28 +218,8 @@ bool checkReleRequesteOn(bool CommandOn)
 bool checkFeedbackRele()
 {
   bool returnReleFeedbackOn;
-  //returnReleFeedbackOn = digitalRead(GPIO_RELE_FEEDBACK);
-  int val = analogRead(GPIO_RELE_FEEDBACK);
-
-  if(val > 100){
-    returnReleFeedbackOn = true;
-  }else{
-    returnReleFeedbackOn = false;
-  }
-
-  // Increase the cycle only when the relè is really on
-  if (returnReleFeedbackOn == true && releFeedbackOnPrevious == false){
-    cyclesNumberOfRele += 1; // Increase the relè cycle counter
-  }
-
-  if(returnReleFeedbackOn == true){
-    millisecOfReleOn += deltaTimeFromLastExecution; 
-  }
-  else{
-    releActivationTimeInSec = millisecOfReleOn/1000;
-  }
-
-  releFeedbackOnPrevious = returnReleFeedbackOn;
+  
+  relayStatusRead = analogRead(GPIO_RELE_FEEDBACK);
 
   return returnReleFeedbackOn;
 }
@@ -357,7 +335,7 @@ void PageSettingsFun()
   display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
   display.println("Settings page:      ");
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-  display.println("");
+  display.println("dTFun2:" + (String)deltaTimeFunction_2);
   display.println("Reconn: " + dataTimeStartedModule);
   display.println("Conn. status: " + connectionCloud);
   display.println("Rele status: " + releStatusString);
